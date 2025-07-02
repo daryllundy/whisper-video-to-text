@@ -10,7 +10,7 @@ Tick a box (`[x]`) after the task is finished and committed.
 | TASK-5 | [x] | Factor script into reusable package structure:<br>``whisper_video_to_text/{__init__.py,cli.py,download.py,convert.py,transcribe.py}``; wire CLI with **Typer**. |
 | TASK-6 | [x] | Write **unit tests** with `pytest` mocking subprocess & whisper (coverage ≥ 80%). |
 | TASK-7 | [x] | Emit **progress bars** using `tqdm` for download & ffmpeg conversion. |
-| TASK-8 | [ ] | Support **SRT & VTT export** (`--format srt|vtt|txt`). |
+| TASK-8 | [x] | Support **SRT & VTT export** (`--format srt|vtt|txt`). |
 | TASK-9 | [ ] | Create **GitHub Actions CI** running lint (`ruff`), type-check (`mypy`), and tests. |
 | TASK-10 | [ ] | Build **Dockerfile** with ffmpeg + whisper; document in README. |
 

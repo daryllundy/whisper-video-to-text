@@ -1,7 +1,7 @@
 from pathlib import Path
 import whisper
 import logging
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 def transcribe_audio(
     audio_file: str,
@@ -82,3 +82,63 @@ def save_transcription(
             f.write(f"Duration: {transcription['segments'][-1]['end']:.1f} seconds\n")
 
     logging.info(f"✓ Transcription saved to: {output_path}")
+
+def save_srt(
+    transcription: Dict[str, Any],
+    output_file: str
+) -> None:
+    """
+    Save transcription to SRT subtitle file.
+
+    Args:
+        transcription: The transcription result.
+        output_file: Path to the output SRT file.
+    """
+    output_path = Path(output_file)
+    segments = transcription.get("segments", [])
+    with open(output_path, "w", encoding="utf-8") as f:
+        for idx, segment in enumerate(segments, 1):
+            start = segment["start"]
+            end = segment["end"]
+            text = segment["text"].strip()
+            f.write(f"{idx}\n")
+            f.write(f"{_format_srt_time(start)} --> {_format_srt_time(end)}\n")
+            f.write(f"{text}\n\n")
+    logging.info(f"✓ SRT saved to: {output_path}")
+
+def save_vtt(
+    transcription: Dict[str, Any],
+    output_file: str
+) -> None:
+    """
+    Save transcription to VTT subtitle file.
+
+    Args:
+        transcription: The transcription result.
+        output_file: Path to the output VTT file.
+    """
+    output_path = Path(output_file)
+    segments = transcription.get("segments", [])
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("WEBVTT\n\n")
+        for segment in segments:
+            start = segment["start"]
+            end = segment["end"]
+            text = segment["text"].strip()
+            f.write(f"{_format_vtt_time(start)} --> {_format_vtt_time(end)}\n")
+            f.write(f"{text}\n\n")
+    logging.info(f"✓ VTT saved to: {output_path}")
+
+def _format_srt_time(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds - int(seconds)) * 1000)
+    return f"{h:02}:{m:02}:{s:02},{ms:03}"
+
+def _format_vtt_time(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds - int(seconds)) * 1000)
+    return f"{h:02}:{m:02}:{s:02}.{ms:03}"

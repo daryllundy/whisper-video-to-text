@@ -2,9 +2,14 @@ import sys
 import logging
 import argparse
 from pathlib import Path
-from whisper_video_to_text.download.py import download_video
+from whisper_video_to_text.download import download_video
 from whisper_video_to_text.convert import convert_mp4_to_mp3
-from whisper_video_to_text.transcribe import transcribe_audio, save_transcription
+from whisper_video_to_text.transcribe import (
+    transcribe_audio,
+    save_transcription,
+    save_srt,
+    save_vtt,
+)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -27,6 +32,9 @@ Examples:
   # Keep intermediate MP3 file
   python -m whisper_video_to_text video.mp4 --keep-audio
 
+  # Export to SRT and VTT
+  python -m whisper_video_to_text video.mp4 --format srt --format vtt
+
 Available Whisper models:
   tiny, base, small, medium, large
         """
@@ -47,6 +55,8 @@ Available Whisper models:
     parser.add_argument('-v', '--verbose', action='store_true',
                        help='Show detailed output')
     parser.add_argument('--logfile', help='Append logs to this file (default: none)', default=None)
+    parser.add_argument('--format', action='append', choices=['txt', 'srt', 'vtt'], default=['txt'],
+                       help='Output format(s): txt, srt, vtt. Can be specified multiple times.')
 
     args = parser.parse_args()
 
@@ -82,21 +92,31 @@ Available Whisper models:
             verbose=args.verbose
         )
 
-        # Determine output filename
+        # Determine output base filename
         if args.output:
-            output_file = args.output
+            base = Path(args.output).with_suffix('')
         else:
-            output_file = str(video_path.with_suffix('.txt'))
+            base = video_path.with_suffix('')
 
-        # Save transcription
-        save_transcription(transcription, output_file, include_timestamps=args.timestamps)
+        # Save in all requested formats
+        for fmt in set(args.format):
+            if fmt == 'txt':
+                save_transcription(
+                    transcription,
+                    str(base.with_suffix('.txt')),
+                    include_timestamps=args.timestamps
+                )
+            elif fmt == 'srt':
+                save_srt(transcription, str(base.with_suffix('.srt')))
+            elif fmt == 'vtt':
+                save_vtt(transcription, str(base.with_suffix('.vtt')))
 
         # Clean up audio file if requested
         if not args.keep_audio and audio_file.exists():
             audio_file.unlink()
             logging.info(f"✓ Removed temporary audio file: {audio_file}")
 
-        logging.info(f"✅ Process complete! Text file ready for LLM analysis: {output_file}")
+        logging.info(f"✅ Process complete! Output(s) ready for LLM analysis.")
 
     except KeyboardInterrupt:
         logging.error("✗ Process interrupted by user")
