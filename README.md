@@ -158,10 +158,10 @@ uv run whisper_video_to_text video.mp4 --output my_transcript.txt
 
 ### Output Files
 
-When `--output` is omitted, files are saved with default names:
-- **Text**: `transcript-YYYY-MM-DD.txt`
-- **SRT**: `transcript-YYYY-MM-DD.srt`
-- **VTT**: `transcript-YYYY-MM-DD.vtt`
+When `--output` is omitted, files are saved with default names based on the current Unix timestamp:
+- **Text**: `transcript-<timestamp>.txt`
+- **SRT**: `transcript-<timestamp>.srt`
+- **VTT**: `transcript-<timestamp>.vtt`
 
 All files are saved in the current directory.
 
