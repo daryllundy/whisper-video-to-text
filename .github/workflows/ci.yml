@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: |
+        pip install uv
+
+    - name: Install dependencies
+      run: |
+        uv pip install -r requirements.txt || true
+        uv pip install .[dev] || true
+
+    - name: Lint with ruff
+      run: |
+        pip install ruff
+        ruff whisper_video_to_text tests
+
+    - name: Type check with mypy
+      run: |
+        pip install mypy
+        mypy whisper_video_to_text
+
+    - name: Run tests
+      run: |
+        pip install pytest
+        pytest tests
