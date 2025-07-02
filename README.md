@@ -6,7 +6,7 @@
 
 **Convert MP4 video files (local or YouTube) to accurate, timestamped text using OpenAI Whisper. Modern, test-driven, and production-ready.**
 
-[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation)
+[Features](#features) • [Installation](#installation) • [Usage](#usage) • [Table of Contents](#table-of-contents)
 
 </div>
 
@@ -43,18 +43,18 @@ Whisper Video ► Text is a powerful command-line tool that bridges the gap betw
 
 ## 📋 Table of Contents
 
-- [About The Project](#-about-the-project)
-- [Features](#-features)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Project Structure](#-project-structure)
-- [Testing](#-testing)
-- [Docker](#-docker)
-- [Roadmap](#-roadmap)
-- [License](#-license)
+- [About The Project](#about-the-project)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Testing](#testing)
+- [Docker](#docker)
+- [Roadmap](#roadmap)
+- [License](#license)
 
-- [Acknowledgments](#-acknowledgments)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -271,6 +271,6 @@ Give a ⭐️ if this project helped you!
 
 <div align="center">
 
-**[⬆ Back to Top](#whisper-video--text)**
+**[⬆ Back to Top](#whisper-video-text)**
 
 </div>
