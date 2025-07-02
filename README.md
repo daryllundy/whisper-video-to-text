@@ -1,87 +1,169 @@
 # Whisper Video ► Text
 
-[![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions)
+<div align="center">
+
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg) ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg) ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey.svg)
 
 **Convert MP4 video files (local or YouTube) to accurate, timestamped text using OpenAI Whisper. Modern, test-driven, and production-ready.**
+
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Documentation](#-documentation)
+
+</div>
+
+---
+
+## 📖 About The Project
+
+Whisper Video ► Text is a powerful command-line tool that bridges the gap between video content and text transcription. Whether you need to transcribe YouTube videos for research, create subtitles for accessibility, or extract text from local video files for documentation, this tool provides state-of-the-art accuracy using OpenAI's Whisper model.
+
+### Why This Project?
+
+- **Local Processing**: No API costs or data privacy concerns - everything runs locally
+- **High Accuracy**: Leverages OpenAI Whisper for industry-leading transcription quality
+- **Multiple Formats**: Export as plain text, SRT, or VTT subtitles
+- **Developer-Friendly**: Built with modern Python practices, fully tested, and production-ready
+- **Great for Portfolios**: Showcases real-world Python, CLI development, and automation skills
 
 ---
 
 ## 🚀 Features
 
-- **YouTube & Local Video Support:** Download from YouTube or use local MP4 files.
-- **Audio Extraction:** Converts video to MP3 using ffmpeg.
-- **State-of-the-Art Transcription:** Uses OpenAI Whisper (local inference) for high-accuracy speech-to-text.
-- **Multiple Output Formats:** Export as plain text, SRT, or VTT subtitles.
-- **Timestamps & Metadata:** Optionally include timestamps and language metadata.
-- **Progress Bars:** Real-time progress for downloads and conversions.
-- **Robust CLI:** Flexible, user-friendly command-line interface.
-- **Logging:** Console and optional file logging, with verbosity control.
-- **Fully Tested:** 80%+ test coverage, CI/CD with linting and type checks.
-- **Docker & CI Ready:** One-command container build and GitHub Actions workflow.
+- **🎥 YouTube & Local Video Support:** Download from YouTube or use local MP4 files
+- **🎵 Audio Extraction:** Converts video to MP3 using ffmpeg
+- **🧠 State-of-the-Art Transcription:** Uses OpenAI Whisper (local inference) for high-accuracy speech-to-text
+- **📝 Multiple Output Formats:** Export as plain text, SRT, or VTT subtitles
+- **⏰ Timestamps & Metadata:** Optionally include timestamps and language metadata
+- **📊 Progress Bars:** Real-time progress for downloads and conversions
+- **💻 Robust CLI:** Flexible, user-friendly command-line interface
+- **📋 Comprehensive Logging:** Console and optional file logging, with verbosity control
+- **🧪 Fully Tested:** 80%+ test coverage with linting and type checks
+- **🐳 Docker Ready:** One-command container build
 
 ---
 
-## 🛠️ Quickstart
+## 📋 Table of Contents
 
-### 1. Clone and set up environment
+- [About The Project](#-about-the-project)
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Project Structure](#-project-structure)
+- [Testing](#-testing)
+- [Docker](#-docker)
+- [Roadmap](#-roadmap)
+- [License](#-license)
+
+- [Acknowledgments](#-acknowledgments)
+
+---
+
+## ✅ Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Python 3.8+** - [Download Python](https://python.org/downloads/)
+- **ffmpeg** - [Download & Install](https://ffmpeg.org/download.html)
+- **uv** (recommended) - [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+### Verify Installation
+
+```bash
+python --version  # Should be 3.8+
+ffmpeg -version   # Should show ffmpeg information
+uv --version      # Should show uv version
+```
+
+---
+
+## 🛠️ Installation
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/daryllundy/whisper-video-to-text.git
 cd whisper-video-to-text
-uv venv
-source .venv/bin/activate
-uv pip install -e .  # editable install with console scripts
 ```
 
-Or install via PEP 621 metadata:
+### 2. Set up virtual environment
 
+```bash
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+For development (recommended):
+```bash
+uv pip install -e .  # Editable install with console scripts
+```
+
+For production:
 ```bash
 uv pip install .
 ```
 
-### 2. Install system dependencies
+### 4. Verify installation
 
-- **ffmpeg**: [Download & install](https://ffmpeg.org/download.html)
+```bash
+whisper_video_to_text --help
+```
 
-### 3. Usage Examples
+---
 
-#### Local MP4 file
+## 🚀 Usage
 
+### Basic Examples
+
+#### Transcribe a local MP4 file
 ```bash
 uv run whisper_video_to_text path/to/video.mp4
 ```
 
 #### Download from YouTube and transcribe
-
 ```bash
 uv run whisper_video_to_text "https://youtube.com/watch?v=..." --download
 ```
 
-#### Export to SRT and VTT
-
+#### Export to subtitle formats
 ```bash
 uv run whisper_video_to_text myvideo.mp4 --format srt --format vtt
 ```
 
-#### Advanced options
+### Advanced Options
 
-- Use a specific Whisper model: `--model large`
-- Set language: `--language en`
-- Include timestamps: `--timestamps`
-- Default transcript filenames when `--output` is omitted: `transcript-YYYY-MM-DD.(txt|srt|vtt)` saved in the current directory
-- Keep intermediate MP3: `--keep-audio`
-- Show verbose output: `--verbose`
-- Log to file: `--logfile run.log`
+```bash
+# Use a specific Whisper model
+uv run whisper_video_to_text video.mp4 --model large
 
----
+# Set language for better accuracy
+uv run whisper_video_to_text video.mp4 --language en
 
-## 🧑‍💻 Why This Project?
+# Include timestamps in output
+uv run whisper_video_to_text video.mp4 --timestamps
 
-- **Modern Python:** Type hints, modular structure, and best practices throughout.
-- **Production-Ready:** Dockerfile, CI/CD, and robust error handling.
-- **Test-Driven:** Pytest-based unit tests with mocking for reliability.
-- **Extensible:** Easy to add new formats, models, or integrations.
-- **Great for Demos & Interviews:** Showcases real-world Python, CLI, and automation skills.
+# Keep intermediate MP3 file
+uv run whisper_video_to_text video.mp4 --keep-audio
+
+# Enable verbose logging
+uv run whisper_video_to_text video.mp4 --verbose
+
+# Log to file
+uv run whisper_video_to_text video.mp4 --logfile run.log
+
+# Custom output filename
+uv run whisper_video_to_text video.mp4 --output my_transcript.txt
+```
+
+### Output Files
+
+When `--output` is omitted, files are saved with default names:
+- **Text**: `transcript-YYYY-MM-DD.txt`
+- **SRT**: `transcript-YYYY-MM-DD.srt`
+- **VTT**: `transcript-YYYY-MM-DD.vtt`
+
+All files are saved in the current directory.
 
 ---
 
@@ -89,53 +171,106 @@ uv run whisper_video_to_text myvideo.mp4 --format srt --format vtt
 
 ```
 whisper-video-to-text/
-├── whisper_video_to_text/
-│   ├── __init__.py
-│   ├── cli.py
-│   ├── convert.py
-│   ├── download.py
-│   └── transcribe.py
-├── tests/
-│   ├── test_convert.py
-│   ├── test_download.py
-│   └── test_transcribe.py
-├── .github/workflows/ci.yml
-├── Dockerfile
-├── pyproject.toml
-├── README.md
-├── tasks.md
-└── .gitignore
+├── whisper_video_to_text/      # Main package
+│   ├── __init__.py            # Package initialization
+│   ├── cli.py                 # Command-line interface
+│   ├── convert.py             # Video to audio conversion
+│   ├── download.py            # YouTube download functionality
+│   └── transcribe.py          # Whisper transcription
+├── tests/                     # Test suite
+│   ├── test_convert.py        # Conversion tests
+│   ├── test_download.py       # Download tests
+│   └── test_transcribe.py     # Transcription tests
+├── Dockerfile                 # Docker container setup
+├── pyproject.toml            # Project configuration
+├── README.md                 # Project documentation
+├── LICENSE.txt               # MIT license
+├── tasks.md                  # Development roadmap
+└── .gitignore               # Git ignore rules
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run all tests with:
+Run the complete test suite:
 
 ```bash
+# Run all tests
 pytest
+
+# Run with coverage report
+pytest --cov=whisper_video_to_text
+
+# Run specific test file
+pytest tests/test_transcribe.py
+
+# Run with verbose output
+pytest -v
 ```
 
 ---
 
 ## 🐳 Docker
 
-Build and run in a container:
-
+### Build the container
 ```bash
 docker build -t whisper-video-to-text .
-docker run --rm -v "$PWD:/app" whisper-video-to-text --help
 ```
 
+### Run with Docker
+```bash
+# Show help
+docker run --rm whisper-video-to-text --help
+
+# Transcribe a local file (mount current directory)
+docker run --rm -v "$PWD:/app" whisper-video-to-text /app/video.mp4
+
+# Download and transcribe YouTube video
+docker run --rm -v "$PWD:/app" whisper-video-to-text "https://youtube.com/watch?v=..." --download
+```
 ---
 
 ## 📋 Roadmap
 
-See [tasks.md](./tasks.md) for completed and planned improvements.
+- [x] Core transcription functionality
+- [x] YouTube download support
+- [x] Multiple output formats (SRT, VTT, TXT)
+- [x] Docker containerization
+- [x] Comprehensive test suite
+- [ ] Batch processing support
+- [ ] Web interface
+- [ ] GPU acceleration option
+- [ ] Additional audio formats support
+
+See [tasks.md](./tasks.md) for detailed progress and planned improvements.
 
 ---
 
 ## 📄 License
 
-MIT License
+This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [OpenAI Whisper](https://github.com/openai/whisper) - For the amazing speech recognition model
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - For reliable YouTube downloading
+- [FFmpeg](https://ffmpeg.org/) - For audio/video processing
+- [Click](https://click.palletsprojects.com/) - For the beautiful CLI interface
+- [pytest](https://pytest.org/) - For the robust testing framework
+
+---
+
+## ⭐ Show your support
+
+Give a ⭐️ if this project helped you!
+
+---
+
+<div align="center">
+
+**[⬆ Back to Top](#whisper-video--text)**
+
+</div>
