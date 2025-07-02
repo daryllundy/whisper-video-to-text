@@ -3,7 +3,7 @@ Tick a box (`[x]`) after the task is finished and committed.
 
 | ID | ☑ | Task |
 |----|----|------|
-| TASK-1 | [ ] | Initialize project metadata: create **pyproject.toml** (PEP 621) with pinned deps (`whisper`, `yt-dlp`, `tqdm`, etc.) and Python version. |
+| TASK-1 | [x] | Initialize project metadata: create **pyproject.toml** (PEP 621) with pinned deps (`whisper`, `yt-dlp`, `tqdm`, etc.) and Python version. |
 | TASK-2 | [ ] | Add **README.md** with overview, install instructions using `uv venv` + `uv pip install -r requirements.txt`, and example CLI usage. |
 | TASK-3 | [ ] | Introduce **logging** module (replace all `print` calls; `--verbose` sets level to `INFO`, otherwise `WARNING`). |
 | TASK-4 | [ ] | Add **type hints** across mp4_to_text.py & run `mypy --strict`; fix any typing issues. |

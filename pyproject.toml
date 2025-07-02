@@ -1,0 +1,22 @@
+[project]
+name = "whisper-video-to-text"
+version = "0.1.0"
+description = "Convert MP4 video files to text using Whisper, with support for YouTube downloads and audio extraction."
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+    "openai-whisper==20231117",
+    "yt-dlp==2024.5.27",
+    "tqdm==4.66.4"
+]
+
+[tool.setuptools]
+packages = ["whisper_video_to_text"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
