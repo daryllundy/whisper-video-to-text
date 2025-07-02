@@ -1,6 +1,6 @@
 # Whisper Video ► Text
 
-[![CI](https://github.com/yourusername/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/whisper-video-to-text/actions)
+[![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions)
 
 **Convert MP4 video files (local or YouTube) to accurate, timestamped text using OpenAI Whisper. Modern, test-driven, and production-ready.**
 
@@ -26,7 +26,7 @@
 ### 1. Clone and set up environment
 
 ```bash
-git clone https://github.com/yourusername/whisper-video-to-text.git
+git clone https://github.com/daryllundy/whisper-video-to-text.git
 cd whisper-video-to-text
 uv venv
 source .venv/bin/activate
