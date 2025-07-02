@@ -6,7 +6,7 @@ Tick a box (`[x]`) after the task is finished and committed.
 | TASK-1 | [x] | Initialize project metadata: create **pyproject.toml** (PEP 621) with pinned deps (`whisper`, `yt-dlp`, `tqdm`, etc.) and Python version. |
 | TASK-2 | [x] | Add **README.md** with overview, install instructions using `uv venv` + `uv pip install -r requirements.txt`, and example CLI usage. |
 | TASK-3 | [x] | Introduce **logging** module (replace all `print` calls; `--verbose` sets level to `INFO`, otherwise `WARNING`). Add `--logfile` argument to optionally append logs to a file. |
-| TASK-4 | [ ] | Add **type hints** across mp4_to_text.py & run `mypy --strict`; fix any typing issues. |
+| TASK-4 | [x] | Add **type hints** across mp4_to_text.py & run `mypy --strict`; fix any typing issues. |
 | TASK-5 | [ ] | Factor script into reusable package structure:<br>``whisper_video_to_text/{__init__.py,cli.py,download.py,convert.py,transcribe.py}``; wire CLI with **Typer**. |
 | TASK-6 | [ ] | Write **unit tests** with `pytest` mocking subprocess & whisper (coverage ≥ 80%). |
 | TASK-7 | [ ] | Emit **progress bars** using `tqdm` for download & ffmpeg conversion. |

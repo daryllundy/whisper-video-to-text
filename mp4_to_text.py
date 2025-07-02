@@ -17,12 +17,13 @@ from pathlib import Path
 import whisper
 import warnings
 import logging
+from typing import Optional, Any, Dict
 
 # Suppress FP16 warning if CUDA is not available
 warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
 
 
-def setup_logging(verbose=False, logfile=None):
+def setup_logging(verbose: bool = False, logfile: Optional[str] = None) -> None:
     """Configure logging to console and optionally to a file (append mode)."""
     log_level = logging.INFO if verbose else logging.WARNING
     handlers = [logging.StreamHandler(sys.stdout)]
@@ -35,14 +36,14 @@ def setup_logging(verbose=False, logfile=None):
     )
 
 
-def check_dependencies():
+def check_dependencies() -> None:
     """Check if required tools are installed"""
-    dependencies = {
+    dependencies: Dict[str, str] = {
         'ffmpeg': 'ffmpeg -version',
         'yt-dlp': 'yt-dlp --version'
     }
 
-    missing = []
+    missing: list[str] = []
     for tool, command in dependencies.items():
         try:
             subprocess.run(command.split(), capture_output=True, check=True)
@@ -59,7 +60,11 @@ def check_dependencies():
         sys.exit(1)
 
 
-def convert_mp4_to_mp3(input_file, output_file=None, verbose=False):
+def convert_mp4_to_mp3(
+    input_file: str,
+    output_file: Optional[str] = None,
+    verbose: bool = False
+) -> Path:
     """Convert MP4 to MP3 using ffmpeg"""
     input_path = Path(input_file)
 
@@ -67,9 +72,9 @@ def convert_mp4_to_mp3(input_file, output_file=None, verbose=False):
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
     if output_file is None:
-        output_file = input_path.with_suffix('.mp3')
+        output_path = input_path.with_suffix('.mp3')
     else:
-        output_file = Path(output_file)
+        output_path = Path(output_file)
 
     # Build ffmpeg command
     cmd = [
@@ -80,7 +85,7 @@ def convert_mp4_to_mp3(input_file, output_file=None, verbose=False):
         '-ab', '192k',  # Audio bitrate
         '-ar', '44100',  # Sample rate
         '-y',  # Overwrite output file
-        str(output_file)
+        str(output_path)
     ]
 
     if not verbose:
@@ -90,14 +95,19 @@ def convert_mp4_to_mp3(input_file, output_file=None, verbose=False):
 
     try:
         subprocess.run(cmd, check=True)
-        logging.info(f"✓ Conversion complete: {output_file}")
-        return output_file
+        logging.info(f"✓ Conversion complete: {output_path}")
+        return output_path
     except subprocess.CalledProcessError as e:
         logging.error(f"✗ Error converting file: {e}")
         sys.exit(1)
 
 
-def transcribe_audio(audio_file, model_name="base", language=None, verbose=False):
+def transcribe_audio(
+    audio_file: str,
+    model_name: str = "base",
+    language: Optional[str] = None,
+    verbose: bool = False
+) -> Dict[str, Any]:
     """Transcribe audio using OpenAI Whisper"""
     audio_path = Path(audio_file)
 
@@ -121,7 +131,11 @@ def transcribe_audio(audio_file, model_name="base", language=None, verbose=False
     return result
 
 
-def save_transcription(transcription, output_file, include_timestamps=False):
+def save_transcription(
+    transcription: Dict[str, Any],
+    output_file: str,
+    include_timestamps: bool = False
+) -> None:
     """Save transcription to text file"""
     output_path = Path(output_file)
 
@@ -157,7 +171,7 @@ def save_transcription(transcription, output_file, include_timestamps=False):
     logging.info(f"✓ Transcription saved to: {output_path}")
 
 
-def download_video(url, output_dir="."):
+def download_video(url: str, output_dir: str = ".") -> str:
     """Download video from URL using yt-dlp"""
     logging.info(f"Downloading video from: {url}")
 
@@ -192,7 +206,7 @@ def download_video(url, output_dir="."):
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Convert MP4 to MP3 and transcribe audio to text",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -253,11 +267,11 @@ Available Whisper models:
         video_path = Path(video_file)
         audio_file = video_path.with_suffix('.mp3')
 
-        convert_mp4_to_mp3(video_file, audio_file, verbose=args.verbose)
+        convert_mp4_to_mp3(video_file, str(audio_file), verbose=args.verbose)
 
         # Transcribe audio
         transcription = transcribe_audio(
-            audio_file,
+            str(audio_file),
             model_name=args.model,
             language=args.language,
             verbose=args.verbose
@@ -267,7 +281,7 @@ Available Whisper models:
         if args.output:
             output_file = args.output
         else:
-            output_file = video_path.with_suffix('.txt')
+            output_file = str(video_path.with_suffix('.txt'))
 
         # Save transcription
         save_transcription(transcription, output_file, include_timestamps=args.timestamps)
