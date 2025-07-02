@@ -1,6 +1,7 @@
 from pathlib import Path
 import subprocess
 import logging
+from tqdm import tqdm
 
 def convert_mp4_to_mp3(
     input_file: str,
@@ -8,7 +9,7 @@ def convert_mp4_to_mp3(
     verbose: bool = False
 ) -> Path:
     """
-    Convert MP4 to MP3 using ffmpeg.
+    Convert MP4 to MP3 using ffmpeg, with a progress bar.
 
     Args:
         input_file: Path to the input MP4 file.
@@ -28,6 +29,14 @@ def convert_mp4_to_mp3(
     else:
         output_path = Path(output_file)
 
+    # Get duration of input file (in seconds) for progress bar
+    try:
+        import ffmpeg
+        probe = ffmpeg.probe(str(input_path))
+        duration = float(probe['format']['duration'])
+    except Exception:
+        duration = None
+
     cmd = [
         'ffmpeg',
         '-i', str(input_path),
@@ -44,10 +53,36 @@ def convert_mp4_to_mp3(
 
     logging.info(f"Converting {input_path.name} to MP3...")
 
-    try:
-        subprocess.run(cmd, check=True)
-        logging.info(f"✓ Conversion complete: {output_path}")
-        return output_path
-    except subprocess.CalledProcessError as e:
-        logging.error(f"✗ Error converting file: {e}")
-        raise
+    if duration:
+        # Use tqdm to show progress bar based on ffmpeg output
+        import shlex
+        import threading
+
+        def run_ffmpeg_with_progress():
+            process = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
+            pbar = tqdm(total=duration, unit="sec", desc="ffmpeg", leave=True)
+            last_time = 0
+            for line in process.stderr:
+                if "time=" in line:
+                    try:
+                        time_str = line.split("time=")[-1].split(" ")[0]
+                        h, m, s = [float(x) for x in time_str.split(":")]
+                        seconds = h * 3600 + m * 60 + s
+                        pbar.update(max(0, seconds - last_time))
+                        last_time = seconds
+                    except Exception:
+                        pass
+            process.wait()
+            pbar.close()
+            if process.returncode != 0:
+                raise subprocess.CalledProcessError(process.returncode, cmd)
+        run_ffmpeg_with_progress()
+    else:
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"✗ Error converting file: {e}")
+            raise
+
+    logging.info(f"✓ Conversion complete: {output_path}")
+    return output_path
