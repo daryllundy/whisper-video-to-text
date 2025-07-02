@@ -2,6 +2,7 @@ import sys
 import logging
 import argparse
 from pathlib import Path
+import datetime
 from whisper_video_to_text.download import download_video
 from whisper_video_to_text.convert import convert_mp4_to_mp3
 from whisper_video_to_text.transcribe import (
@@ -96,7 +97,9 @@ Available Whisper models:
         if args.output:
             base = Path(args.output).with_suffix('')
         else:
-            base = video_path.with_suffix('')
+            # Save in the current working directory with date-stamped name
+            date_str = datetime.date.today().isoformat()  # YYYY-MM-DD
+            base = Path.cwd() / f"transcript-{date_str}"
 
         # Save in all requested formats
         for fmt in set(args.format):
