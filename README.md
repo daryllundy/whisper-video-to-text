@@ -30,7 +30,7 @@ git clone https://github.com/daryllundy/whisper-video-to-text.git
 cd whisper-video-to-text
 uv venv
 source .venv/bin/activate
-uv pip install -r requirements.txt
+uv pip install -e .  # editable install with console scripts
 ```
 
 Or install via PEP 621 metadata:
@@ -48,19 +48,19 @@ uv pip install .
 #### Local MP4 file
 
 ```bash
-python -m whisper_video_to_text path/to/video.mp4
+uv run whisper_video_to_text path/to/video.mp4
 ```
 
 #### Download from YouTube and transcribe
 
 ```bash
-python -m whisper_video_to_text "https://youtube.com/watch?v=..." --download
+uv run whisper_video_to_text "https://youtube.com/watch?v=..." --download
 ```
 
 #### Export to SRT and VTT
 
 ```bash
-python -m whisper_video_to_text myvideo.mp4 --format srt --format vtt
+uv run whisper_video_to_text myvideo.mp4 --format srt --format vtt
 ```
 
 #### Advanced options
@@ -68,6 +68,7 @@ python -m whisper_video_to_text myvideo.mp4 --format srt --format vtt
 - Use a specific Whisper model: `--model large`
 - Set language: `--language en`
 - Include timestamps: `--timestamps`
+- Default transcript filenames when `--output` is omitted: `transcript-YYYY-MM-DD.(txt|srt|vtt)` saved in the current directory
 - Keep intermediate MP3: `--keep-audio`
 - Show verbose output: `--verbose`
 - Log to file: `--logfile run.log`
@@ -138,11 +139,3 @@ See [tasks.md](./tasks.md) for completed and planned improvements.
 ## 📄 License
 
 MIT License
-
----
-
-## 👤 Author
-
-**Your Name**
-[Your GitHub](https://github.com/yourusername)
-[Your LinkedIn](https://linkedin.com/in/yourprofile)
