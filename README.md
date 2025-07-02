@@ -53,7 +53,6 @@ Whisper Video ► Text is a powerful command-line tool that bridges the gap betw
 - [Docker](#-docker)
 - [Roadmap](#-roadmap)
 - [License](#-license)
-
 - [Acknowledgments](#-acknowledgments)
 
 ---
@@ -63,7 +62,7 @@ Whisper Video ► Text is a powerful command-line tool that bridges the gap betw
 Before you begin, ensure you have the following installed:
 
 - **Python 3.8+** - [Download Python](https://python.org/downloads/)
-- **ffmpeg** - [Download & Install](https://ffmpeg.org/download.html)
+- **ffmpeg** - [Download &amp; Install](https://ffmpeg.org/download.html)
 - **uv** (recommended) - [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Verify Installation
@@ -95,11 +94,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ### 3. Install dependencies
 
 For development (recommended):
+
 ```bash
 uv pip install -e .  # Editable install with console scripts
 ```
 
 For production:
+
 ```bash
 uv pip install .
 ```
@@ -117,16 +118,19 @@ whisper_video_to_text --help
 ### Basic Examples
 
 #### Transcribe a local MP4 file
+
 ```bash
 uv run whisper_video_to_text path/to/video.mp4
 ```
 
 #### Download from YouTube and transcribe
+
 ```bash
 uv run whisper_video_to_text "https://youtube.com/watch?v=..." --download
 ```
 
 #### Export to subtitle formats
+
 ```bash
 uv run whisper_video_to_text myvideo.mp4 --format srt --format vtt
 ```
@@ -159,11 +163,39 @@ uv run whisper_video_to_text video.mp4 --output my_transcript.txt
 ### Output Files
 
 When `--output` is omitted, files are saved with default names based on the current Unix timestamp:
+
 - **Text**: `transcript-<timestamp>.txt`
 - **SRT**: `transcript-<timestamp>.srt`
 - **VTT**: `transcript-<timestamp>.vtt`
 
 All files are saved in the current directory.
+
+---
+
+## 🌐 Web Interface
+
+A modern web UI is included for browser-based transcription.
+
+### Install Web Dependencies
+
+```bash
+uv pip install .[web]
+```
+
+### Run the Web Server
+
+```bash
+uv run whisper_video_to_text/web/main.py
+```
+
+Visit [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+### Features
+
+- Upload MP4 or paste YouTube URL
+- Select Whisper model, language, and output format
+- Real-time progress bar and transcript display
+- Download results
 
 ---
 
@@ -214,11 +246,13 @@ pytest -v
 ## 🐳 Docker
 
 ### Build the container
+
 ```bash
 docker build -t whisper-video-to-text .
 ```
 
 ### Run with Docker
+
 ```bash
 # Show help
 docker run --rm whisper-video-to-text --help
@@ -229,17 +263,18 @@ docker run --rm -v "$PWD:/app" whisper-video-to-text /app/video.mp4
 # Download and transcribe YouTube video
 docker run --rm -v "$PWD:/app" whisper-video-to-text "https://youtube.com/watch?v=..." --download
 ```
+
 ---
 
 ## 📋 Roadmap
 
-- [x] Core transcription functionality
-- [x] YouTube download support
-- [x] Multiple output formats (SRT, VTT, TXT)
-- [x] Docker containerization
-- [x] Comprehensive test suite
+- [X] Core transcription functionality
+- [X] YouTube download support
+- [X] Multiple output formats (SRT, VTT, TXT)
+- [X] Docker containerization
+- [X] Comprehensive test suite
 - [ ] Batch processing support
-- [ ] Web interface
+- [X] Web interface (FastAPI, HTMX, real-time progress, upload/YouTube support)
 - [ ] GPU acceleration option
 - [ ] Additional audio formats support
 
