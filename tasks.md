@@ -13,5 +13,9 @@ Tick a box (`[x]`) after the task is finished and committed.
 | TASK-8 | [x] | Support **SRT & VTT export** (`--format srt|vtt|txt`). |
 | TASK-9 | [x] | Create **GitHub Actions CI** running lint (`ruff`), type-check (`mypy`), and tests. |
 | TASK-10 | [x] | Build **Dockerfile** with ffmpeg + whisper; document in README. |
+| TASK-11 | [x] | Web interface (FastAPI, HTMX, real-time progress, upload/YouTube support) |
+| TASK-12 | [ ] | Batch processing support |
+| TASK-13 | [ ] | GPU acceleration option |
+| TASK-14 | [ ] | Additional audio formats support |
 
 _Note:_ If you later drop or add tasks, keep IDs sequential (`TASK-n`) to ease commit messages.
