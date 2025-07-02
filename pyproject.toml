@@ -18,6 +18,14 @@ dependencies = [
 whisper-video-to-text = "whisper_video_to_text.cli:main"
 whisper_video_to_text = "whisper_video_to_text.cli:main"
 
+[project.optional-dependencies]
+web = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "jinja2"
+]
+
 [tool.setuptools]
 packages = ["whisper_video_to_text"]
 
