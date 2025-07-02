@@ -107,3 +107,4 @@ Thumbs.db
 
 # Ignore test output
 tests/__pycache__/
+.history/
