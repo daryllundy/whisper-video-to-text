@@ -21,13 +21,13 @@ jobs:
         run: |
           git config --global user.name "GitHub Mirror Bot"
           git config --global user.email "mirror-bot@users.noreply.github.com"
-          
+
           # Add GitLab remote
           git remote add gitlab https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/${GITLAB_USERNAME}/${GITHUB_REPOSITORY#*/}.git
-          
+
           # Push everything
           git push gitlab --all --force
           git push gitlab --tags --force
           git push gitlab --prune
-          
+
           echo "✅ Successfully mirrored to GitLab"
