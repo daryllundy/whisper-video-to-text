@@ -1,29 +1,3 @@
-# broken mirror action
-# name: Mirror to GitLab
-# on:
-#   push:
-#     branches: ['**']
-#     tags: ['**']
-#   delete:
-#     branches: ['**']
-#     tags: ['**']
-
-# jobs:
-#   mirror:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#         with:
-#           fetch-depth: 0
-
-#       - name: Mirror to GitLab
-#         uses: yesolutions/mirror-action@master
-#         with:
-#           REMOTE: 'https://gitlab.com/daryllundy/whisper-video-to-text.git'
-#           GIT_USERNAME: ${{ secrets.daryllundy }}
-#           GIT_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
-#           GIT_PUSH_ARGS: '--force --prune --tags'
-#           PUSH_ALL_REFS: 'true'
 name: Mirror to GitLab
 on:
   push:
@@ -38,20 +12,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Full history for proper mirroring
+          fetch-depth: 0
 
       - name: Mirror to GitLab
+        env:
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          # Configure git
           git config --global user.name "GitHub Mirror Bot"
           git config --global user.email "mirror-bot@users.noreply.github.com"
-
+          
           # Add GitLab remote
-          git remote add gitlab https://${{ secrets.GITLAB_USERNAME }}:${{ secrets.GITLAB_TOKEN }}@gitlab.com/${{ secrets.GITLAB_USERNAME }}/${GITHUB_REPOSITORY#*/}.git
-
-          # Push all branches and tags
+          git remote add gitlab https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/${GITLAB_USERNAME}/${GITHUB_REPOSITORY#*/}.git
+          
+          # Push everything
           git push gitlab --all --force
           git push gitlab --tags --force
-
-          # Clean up deleted branches
           git push gitlab --prune
+          
+          echo "✅ Successfully mirrored to GitLab"

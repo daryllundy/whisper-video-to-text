@@ -1,0 +1,31 @@
+name: Update README After Mirror
+on:
+  workflow_run:
+    workflows: ["Mirror to GitLab"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Add GitLab Mirror Badge
+        env:
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+        run: |
+          if ! grep -q "GitLab.*Mirror\|gitlab.*badge" README.md 2>/dev/null; then
+            # Add badge after title
+            sed -i '1 a\\n[![GitHub](https://img.shields.io/badge/GitHub-Primary-181717?logo=github)](https://github.com/${{ github.repository }}) [![GitLab](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/${GITLAB_USERNAME}/${{ github.event.repository.name }})\n' README.md
+            
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add README.md
+            git commit -m "docs: Add GitLab mirror badge" || echo "Already has badge"
+            git push || echo "No changes to push"
+          fi
