@@ -1,0 +1,25 @@
+name: Mirror to GitLab
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  delete:
+    branches: ['**']
+    tags: ['**']
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        uses: yesolutions/mirror-action@master
+        with:
+          REMOTE: 'https://gitlab.com/daryllundy/whisper-video-to-text.git'
+          GIT_USERNAME: ${{ secrets.daryllundy }}
+          GIT_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
+          GIT_PUSH_ARGS: '--all --force --prune'
+          GIT_PUSH_TAGS: 'true'
