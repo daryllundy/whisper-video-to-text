@@ -1,11 +1,11 @@
-# Whisper Video ► Text
+# Whisper Video ► Text 🎥
 
-[![GitHub](https://img.shields.io/badge/GitHub-Primary-181717?logo=github)](https://github.com/daryllundy/whisper-video-to-text) [![GitLab](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)
-
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](#docker)
+[![GitLab Mirror](https://img.shields.io/badge/gitlab-mirror-orange.svg)](https://gitlab.com/daryllundy/whisper-video-to-text)
 
 <div align="center">
-
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg) ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg) ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey.svg)
 
 **Convert MP4 video files (local or YouTube) to accurate, timestamped text using OpenAI Whisper. Modern, test-driven, and production-ready.**
 
@@ -18,6 +18,12 @@
 ## 📖 About The Project
 
 Whisper Video ► Text is a powerful command-line tool that bridges the gap between video content and text transcription. Whether you need to transcribe YouTube videos for research, create subtitles for accessibility, or extract text from local video files for documentation, this tool provides state-of-the-art accuracy using OpenAI's Whisper model.
+
+## Demo
+
+[![asciicast](https://asciinema.org/a/demo-whisper-video-to-text.svg)](demo.cast)
+
+*YouTube download and transcription workflow with multiple output formats*
 
 ### Why This Project?
 

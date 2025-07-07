@@ -1,0 +1,33 @@
+name: Mirror to GitLab
+
+on:
+  push:
+    branches: [main, master, develop]
+  workflow_dispatch:
+
+jobs:
+  gitlab-mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        uses: wearerequired/git-mirror-action@master
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GITLAB_SSH_PRIVATE_KEY }}
+        with:
+          source-repo: "https://github.com/${{ github.repository }}.git"
+          destination-repo: "git@gitlab.com:daryllundy/whisper-video-to-text.git"
+
+      - name: GitLab Mirror Status
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Successfully mirrored to GitLab"
+          else
+            echo "❌ GitLab mirror failed"
+            exit 1
+          fi
