@@ -1,0 +1,59 @@
+# Git and version control
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.pytest_cache
+htmlcov
+
+# Virtual environments
+.venv
+.env
+venv/
+ENV/
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+.history/
+build/
+dist/
+*.egg-info/
+transcripts/
+examples/*.MP4
+examples/*.mp4
+examples/*.cast
+
+# Documentation
+README.md
+LICENSE.txt
+*.md
+
+# CI/CD
+.github/

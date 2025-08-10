@@ -25,6 +25,12 @@ web = [
     "python-multipart",
     "jinja2"
 ]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "black>=23.0.0"
+]
 
 [tool.setuptools]
 packages = ["whisper_video_to_text"]
