@@ -1,0 +1,60 @@
+name: Mirror
+
+on:
+  push:
+    branches: [main, master, develop]
+  delete:
+  schedule:
+    - cron: '0 0 * * *'  # Daily sync as backup
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        env:
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          git config --global user.name "GitHub Mirror Bot"
+          git config --global user.email "mirror-bot@users.noreply.github.com"
+
+          # Add GitLab remote
+          git remote add gitlab https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/daryllundy/whisper-video-to-text.git
+
+          # Push everything
+          git push gitlab --all --force
+          git push gitlab --tags --force
+          git push gitlab --prune
+
+          echo "✅ Successfully mirrored to GitLab"
+
+  update-readme:
+    runs-on: ubuntu-latest
+    needs: mirror
+    if: ${{ success() }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add GitLab Mirror Badge
+        env:
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+        run: |
+          if ! grep -q "GitLab.*Mirror\|gitlab.*badge" README.md 2>/dev/null; then
+            # Add badge after title
+            sed -i '1 a\\n[![GitHub](https://img.shields.io/badge/GitHub-Primary-181717?logo=github)](https://github.com/${{ github.repository }}) [![GitLab](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)\n' README.md
+
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add README.md
+            git commit -m "docs: Add GitLab mirror badge" || echo "Already has badge"
+            git push || echo "No changes to push"
+          fi
