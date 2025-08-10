@@ -5,7 +5,7 @@ on:
     branches: [main, master, develop]
   delete:
   schedule:
-    - cron: '0 0 * * *'  # Daily sync as backup
+    - cron: "0 0 * * *" # Daily sync as backup
   workflow_dispatch:
 
 jobs:
@@ -17,23 +17,232 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate GitLab Credentials
+        env:
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          echo "🔍 Validating GitLab credentials and environment..."
+
+          # Check if required secrets are available
+          if [ -z "$GITLAB_USERNAME" ]; then
+            echo "❌ ERROR: GITLAB_USERNAME secret is not set"
+            echo "Configuration steps:"
+            echo "  1. Go to repository Settings > Secrets and variables > Actions"
+            echo "  2. Click 'New repository secret'"
+            echo "  3. Name: GITLAB_USERNAME"
+            echo "  4. Value: Your GitLab username"
+            echo "Debug information:"
+            echo "  - Repository: ${{ github.repository }}"
+            echo "  - Workflow: ${{ github.workflow }}"
+            echo "  - Event: ${{ github.event_name }}"
+            exit 1
+          fi
+
+          if [ -z "$GITLAB_TOKEN" ]; then
+            echo "❌ ERROR: GITLAB_TOKEN secret is not set"
+            echo "Configuration steps:"
+            echo "  1. Create a GitLab Personal Access Token with 'write_repository' scope"
+            echo "  2. Go to repository Settings > Secrets and variables > Actions"
+            echo "  3. Click 'New repository secret'"
+            echo "  4. Name: GITLAB_TOKEN"
+            echo "  5. Value: Your GitLab personal access token"
+            echo "Debug information:"
+            echo "  - Repository: ${{ github.repository }}"
+            echo "  - Workflow: ${{ github.workflow }}"
+            echo "  - Event: ${{ github.event_name }}"
+            exit 1
+          fi
+
+          # Validate credential format
+          if [ ${#GITLAB_USERNAME} -lt 3 ]; then
+            echo "❌ ERROR: GITLAB_USERNAME appears to be too short (${#GITLAB_USERNAME} characters)"
+            echo "Please verify the GitLab username is correct"
+            exit 1
+          fi
+
+          if [ ${#GITLAB_TOKEN} -lt 20 ]; then
+            echo "❌ ERROR: GITLAB_TOKEN appears to be too short (${#GITLAB_TOKEN} characters)"
+            echo "GitLab personal access tokens are typically 20+ characters"
+            echo "Please verify the token is complete and valid"
+            exit 1
+          fi
+
+          # Check for common token format issues
+          if echo "$GITLAB_TOKEN" | grep -q " "; then
+            echo "❌ ERROR: GITLAB_TOKEN contains spaces, which is invalid"
+            echo "Please ensure the token was copied correctly without extra spaces"
+            exit 1
+          fi
+
+          echo "✅ GitLab credentials validation passed"
+          echo "  - Username length: ${#GITLAB_USERNAME} characters"
+          echo "  - Token length: ${#GITLAB_TOKEN} characters"
+          echo "  - Repository context: ${{ github.repository }}"
+
       - name: Mirror to GitLab
         env:
           GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git config --global user.name "GitHub Mirror Bot"
-          git config --global user.email "mirror-bot@users.noreply.github.com"
+          echo "🚀 Starting GitLab mirror operation..."
+          
+          # Display environment information for debugging
+          echo "📋 Mirror environment:"
+          echo "  - Source repository: ${{ github.repository }}"
+          echo "  - Target repository: gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text"
+          echo "  - Git version: $(git --version)"
+          echo "  - Current branch: $(git branch --show-current)"
+          echo "  - Total branches: $(git branch -r | wc -l)"
+          echo "  - Total tags: $(git tag | wc -l)"
 
-          # Add GitLab remote
-          git remote add gitlab https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/daryllundy/whisper-video-to-text.git
+          # Configure git with bot identity
+          echo "⚙️ Configuring git identity..."
+          if ! git config --global user.name "GitHub Mirror Bot"; then
+            echo "❌ ERROR: Failed to configure git user name"
+            exit 1
+          fi
+          
+          if ! git config --global user.email "mirror-bot@users.noreply.github.com"; then
+            echo "❌ ERROR: Failed to configure git user email"
+            exit 1
+          fi
+          echo "✅ Git identity configured"
 
-          # Push everything
-          git push gitlab --all --force
-          git push gitlab --tags --force
-          git push gitlab --prune
+          # Add GitLab remote with comprehensive error handling
+          echo "🔗 Adding GitLab remote..."
+          GITLAB_URL="https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/daryllundy/whisper-video-to-text.git"
+          
+          if git remote get-url gitlab >/dev/null 2>&1; then
+            echo "ℹ️ GitLab remote already exists, updating URL..."
+            if ! git remote set-url gitlab "$GITLAB_URL"; then
+              echo "❌ ERROR: Failed to update GitLab remote URL"
+              echo "Debug information:"
+              echo "  - Existing remotes:"
+              git remote -v
+              exit 1
+            fi
+          else
+            echo "➕ Adding new GitLab remote..."
+            if ! git remote add gitlab "$GITLAB_URL" 2>&1; then
+              echo "❌ ERROR: Failed to add GitLab remote"
+              echo "This could be due to:"
+              echo "  - Invalid URL format"
+              echo "  - Git configuration issues"
+              echo "Debug information:"
+              echo "  - Current remotes:"
+              git remote -v
+              echo "  - Git config:"
+              git config --list | grep -E "(user|remote)" | head -10
+              exit 1
+            fi
+          fi
+          echo "✅ GitLab remote configured"
 
-          echo "✅ Successfully mirrored to GitLab"
+          # Test GitLab connectivity with detailed error reporting
+          echo "🔍 Testing GitLab connectivity..."
+          CONNECTIVITY_OUTPUT=$(git ls-remote gitlab HEAD 2>&1)
+          CONNECTIVITY_EXIT_CODE=$?
+          
+          if [ $CONNECTIVITY_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Failed to connect to GitLab repository"
+            echo "Exit code: $CONNECTIVITY_EXIT_CODE"
+            echo "Output: $CONNECTIVITY_OUTPUT"
+            echo "Common causes:"
+            echo "  - Invalid GitLab credentials (username or token)"
+            echo "  - Repository doesn't exist: gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text"
+            echo "  - Network connectivity issues"
+            echo "  - GitLab API rate limiting or maintenance"
+            echo "  - Token permissions insufficient (needs 'write_repository' scope)"
+            echo "Debug information:"
+            echo "  - Network connectivity test:"
+            curl -s -o /dev/null -w "    GitLab.com HTTP status: %{http_code}\n" https://gitlab.com/ || echo "    Network connectivity failed"
+            echo "  - DNS resolution:"
+            nslookup gitlab.com 2>/dev/null | head -5 || echo "    DNS resolution failed"
+            echo "  - Repository URL format: gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text"
+            exit 1
+          fi
+          echo "✅ GitLab connectivity verified"
+          echo "  - Remote HEAD: $(echo "$CONNECTIVITY_OUTPUT" | head -1 | awk '{print $1}' | cut -c1-8)..."
+
+          # Push all branches with comprehensive error handling
+          echo "📤 Pushing all branches to GitLab..."
+          BRANCH_PUSH_OUTPUT=$(git push gitlab --all --force 2>&1)
+          BRANCH_PUSH_EXIT_CODE=$?
+          
+          if [ $BRANCH_PUSH_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Failed to push branches to GitLab"
+            echo "Exit code: $BRANCH_PUSH_EXIT_CODE"
+            echo "Output: $BRANCH_PUSH_OUTPUT"
+            echo "Common causes:"
+            echo "  - Insufficient GitLab repository permissions"
+            echo "  - Protected branches preventing force push"
+            echo "  - Network timeout or connectivity issues"
+            echo "  - GitLab storage quota exceeded"
+            echo "  - Repository size limits exceeded"
+            echo "Debug information:"
+            echo "  - Local branches to push:"
+            git branch -a | head -10
+            echo "  - Repository size:"
+            du -sh .git 2>/dev/null || echo "    Unable to determine repository size"
+            echo "  - Network status during push:"
+            ping -c 1 gitlab.com >/dev/null 2>&1 && echo "    Network connectivity: OK" || echo "    Network connectivity: FAILED"
+            exit 1
+          fi
+          
+          # Parse and display push results
+          PUSHED_BRANCHES=$(echo "$BRANCH_PUSH_OUTPUT" | grep -c "^\*" || echo "0")
+          echo "✅ All branches pushed successfully ($PUSHED_BRANCHES branches)"
+
+          # Push all tags with comprehensive error handling
+          echo "🏷️ Pushing all tags to GitLab..."
+          TAG_PUSH_OUTPUT=$(git push gitlab --tags --force 2>&1)
+          TAG_PUSH_EXIT_CODE=$?
+          
+          if [ $TAG_PUSH_EXIT_CODE -ne 0 ]; then
+            echo "⚠️ WARNING: Failed to push tags to GitLab"
+            echo "Exit code: $TAG_PUSH_EXIT_CODE"
+            echo "Output: $TAG_PUSH_OUTPUT"
+            echo "Common causes:"
+            echo "  - Protected tags preventing force push"
+            echo "  - Tag naming conflicts"
+            echo "  - Insufficient permissions for tag operations"
+            echo "Debug information:"
+            echo "  - Local tags to push:"
+            git tag | head -10
+            echo "  - Total tags: $(git tag | wc -l)"
+            # Don't fail the entire job for tag push failures
+          else
+            PUSHED_TAGS=$(echo "$TAG_PUSH_OUTPUT" | grep -c "^\*" || echo "0")
+            echo "✅ All tags pushed successfully ($PUSHED_TAGS tags)"
+          fi
+
+          # Prune deleted branches with comprehensive error handling
+          echo "🧹 Pruning deleted branches on GitLab..."
+          PRUNE_OUTPUT=$(git push gitlab --prune 2>&1)
+          PRUNE_EXIT_CODE=$?
+          
+          if [ $PRUNE_EXIT_CODE -ne 0 ]; then
+            echo "⚠️ WARNING: Failed to prune deleted branches"
+            echo "Exit code: $PRUNE_EXIT_CODE"
+            echo "Output: $PRUNE_OUTPUT"
+            echo "Common causes:"
+            echo "  - Protected branches preventing deletion"
+            echo "  - Default branch cannot be deleted"
+            echo "  - Insufficient permissions for branch deletion"
+            echo "Debug information:"
+            echo "  - Remote branches before prune:"
+            git ls-remote --heads gitlab 2>/dev/null | head -5 || echo "    Unable to list remote branches"
+            # Don't fail the entire job for prune failures
+          else
+            echo "✅ Deleted branches pruned successfully"
+          fi
+
+          echo "🎉 GitLab mirror operation completed successfully"
+          echo "📊 Mirror summary:"
+          echo "  - Branches: ✅ Pushed"
+          echo "  - Tags: $([ $TAG_PUSH_EXIT_CODE -eq 0 ] && echo "✅ Pushed" || echo "⚠️ Failed")"
+          echo "  - Pruning: $([ $PRUNE_EXIT_CODE -eq 0 ] && echo "✅ Completed" || echo "⚠️ Failed")"
 
   update-readme:
     runs-on: ubuntu-latest
@@ -44,17 +253,347 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate GitLab Username for Badge
+        env:
+          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+        run: |
+          echo "🔍 Validating GitLab username for badge update..."
+
+          if [ -z "$GITLAB_USERNAME" ]; then
+            echo "❌ ERROR: GITLAB_USERNAME secret is not set"
+            echo "Cannot update README badge without GitLab username"
+            echo "This step requires the same GITLAB_USERNAME secret as the mirror step"
+            echo "Debug information:"
+            echo "  - Job dependency: mirror job status = ${{ needs.mirror.result }}"
+            echo "  - Repository: ${{ github.repository }}"
+            exit 1
+          fi
+
+          # Validate username format for URL construction
+          if echo "$GITLAB_USERNAME" | grep -q "[^a-zA-Z0-9._-]"; then
+            echo "❌ ERROR: GITLAB_USERNAME contains invalid characters"
+            echo "GitLab usernames can only contain letters, numbers, dots, hyphens, and underscores"
+            echo "Current username length: ${#GITLAB_USERNAME} characters"
+            exit 1
+          fi
+
+          if [ ${#GITLAB_USERNAME} -lt 1 ] || [ ${#GITLAB_USERNAME} -gt 255 ]; then
+            echo "❌ ERROR: GITLAB_USERNAME length is invalid (${#GITLAB_USERNAME} characters)"
+            echo "GitLab usernames must be between 1 and 255 characters"
+            exit 1
+          fi
+
+          echo "✅ GitLab username validation passed"
+          echo "  - Username: ${GITLAB_USERNAME}"
+          echo "  - Length: ${#GITLAB_USERNAME} characters"
+          echo "  - Target URL: https://gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text"
+
       - name: Add GitLab Mirror Badge
         env:
           GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
         run: |
-          if ! grep -q "GitLab.*Mirror\|gitlab.*badge" README.md 2>/dev/null; then
-            # Add badge after title
-            sed -i '1 a\\n[![GitHub](https://img.shields.io/badge/GitHub-Primary-181717?logo=github)](https://github.com/${{ github.repository }}) [![GitLab](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)\n' README.md
+          echo "🏷️ Checking if GitLab mirror badge needs to be added..."
+          
+          # Display badge update context
+          echo "📋 Badge update context:"
+          echo "  - Repository: ${{ github.repository }}"
+          echo "  - Target GitLab: gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text"
+          echo "  - Working directory: $(pwd)"
+          echo "  - Git status: $(git status --porcelain | wc -l) modified files"
 
-            git config user.name "GitHub Actions"
-            git config user.email "actions@github.com"
-            git add README.md
-            git commit -m "docs: Add GitLab mirror badge" || echo "Already has badge"
-            git push || echo "No changes to push"
+          # Check if README.md exists with detailed error reporting
+          if [ ! -f "README.md" ]; then
+            echo "⚠️ WARNING: README.md not found, skipping badge update"
+            echo "Available files in current directory:"
+            ls -la | head -10
+            echo "This is not an error - badge update is optional"
+            exit 0
+          fi
+          
+          echo "📄 README.md found ($(wc -l < README.md) lines, $(wc -c < README.md) bytes)"
+
+          # Improved badge detection logic with detailed reporting
+          echo "🔍 Scanning README.md for existing GitLab badges..."
+          GITLAB_BADGE_EXISTS=false
+          DETECTION_DETAILS=""
+
+          # Pattern 1: GitLab Mirror badge text
+          if grep -q -E "GitLab.*Mirror.*badge" README.md 2>/dev/null; then
+            echo "✅ GitLab Mirror badge found (pattern 1: badge text)"
+            GITLAB_BADGE_EXISTS=true
+            DETECTION_DETAILS="$DETECTION_DETAILS\n  - Found badge text pattern"
+          fi
+          
+          # Pattern 2: GitLab repository link
+          if grep -q -E "gitlab\.com.*whisper-video-to-text" README.md 2>/dev/null; then
+            echo "✅ GitLab repository link found (pattern 2: repository URL)"
+            GITLAB_BADGE_EXISTS=true
+            DETECTION_DETAILS="$DETECTION_DETAILS\n  - Found repository URL pattern"
+          fi
+          
+          # Pattern 3: GitLab badge link format
+          if grep -q -E "\[.*GitLab.*\].*gitlab\.com" README.md 2>/dev/null; then
+            echo "✅ GitLab badge link found (pattern 3: markdown link)"
+            GITLAB_BADGE_EXISTS=true
+            DETECTION_DETAILS="$DETECTION_DETAILS\n  - Found markdown link pattern"
+          fi
+          
+          # Pattern 4: Shields.io GitLab badge
+          if grep -q -E "img\.shields\.io.*gitlab" README.md 2>/dev/null; then
+            echo "✅ GitLab shields.io badge found (pattern 4: shields.io)"
+            GITLAB_BADGE_EXISTS=true
+            DETECTION_DETAILS="$DETECTION_DETAILS\n  - Found shields.io badge pattern"
+          fi
+
+          if [ "$GITLAB_BADGE_EXISTS" = true ]; then
+            echo "✅ GitLab mirror badge already exists in README.md, no changes needed"
+            echo "Detection details:$DETECTION_DETAILS"
+            exit 0
+          fi
+
+          echo "📝 GitLab mirror badge not found, proceeding with badge addition..."
+
+          # Create backup of README.md with error handling
+          echo "💾 Creating backup of README.md..."
+          if ! cp README.md README.md.backup; then
+            echo "❌ ERROR: Failed to create backup of README.md"
+            echo "This could be due to:"
+            echo "  - Insufficient disk space"
+            echo "  - File permission issues"
+            echo "  - Filesystem errors"
+            echo "Debug information:"
+            echo "  - Disk space: $(df -h . | tail -1)"
+            echo "  - File permissions: $(ls -la README.md)"
+            exit 1
+          fi
+          echo "✅ Backup created successfully"
+
+          # Find the appropriate location to add the badge
+          echo "🔍 Finding optimal badge placement location..."
+          BADGE_LINE=$(grep -n "img\.shields\.io" README.md | tail -1 | cut -d: -f1)
+          PLACEMENT_METHOD=""
+
+          if [ -n "$BADGE_LINE" ] && [ "$BADGE_LINE" -gt 0 ]; then
+            # Add badge after the last existing badge
+            PLACEMENT_METHOD="after-existing-badges"
+            echo "📍 Adding GitLab badge after line $BADGE_LINE (after existing badges)"
+            
+            if ! sed -i "${BADGE_LINE}a [![GitLab Mirror](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text)" README.md; then
+              echo "❌ ERROR: Failed to add badge after existing badges"
+              echo "Debug information:"
+              echo "  - Target line: $BADGE_LINE"
+              echo "  - Line content: $(sed -n "${BADGE_LINE}p" README.md.backup)"
+              echo "  - sed command failed"
+              mv README.md.backup README.md
+              exit 1
+            fi
+          else
+            # Fallback: add after the title line
+            PLACEMENT_METHOD="after-title"
+            echo "📍 Adding GitLab badge after title (fallback method)"
+            
+            if ! sed -i '1 a\\n[![GitLab Mirror](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/'"${GITLAB_USERNAME}"'/whisper-video-to-text)' README.md; then
+              echo "❌ ERROR: Failed to add badge after title"
+              echo "Debug information:"
+              echo "  - First line content: $(head -1 README.md.backup)"
+              echo "  - sed command failed"
+              mv README.md.backup README.md
+              exit 1
+            fi
+          fi
+
+          echo "✅ Badge added to README.md successfully using method: $PLACEMENT_METHOD"
+
+          # Verify the badge was actually added by checking for changes
+          echo "🔍 Verifying badge addition..."
+          if git diff --quiet README.md; then
+            echo "ℹ️ No changes detected in README.md after badge addition"
+            echo "This could indicate the badge was already present or sed command didn't work"
+            echo "Skipping commit as no changes were made"
+            rm -f README.md.backup
+            exit 0
+          fi
+
+          # Display the changes for debugging
+          echo "📊 Changes made to README.md:"
+          git diff --no-index README.md.backup README.md | head -20 || echo "Unable to show diff"
+
+          # Configure git with comprehensive error handling
+          echo "⚙️ Configuring git for commit..."
+          if ! git config user.name "GitHub Actions"; then
+            echo "❌ ERROR: Failed to configure git user name"
+            echo "Debug information:"
+            echo "  - Git version: $(git --version)"
+            echo "  - Current git config:"
+            git config --list | grep user || echo "    No user config found"
+            mv README.md.backup README.md
+            exit 1
+          fi
+
+          if ! git config user.email "actions@github.com"; then
+            echo "❌ ERROR: Failed to configure git user email"
+            echo "Debug information:"
+            echo "  - Git version: $(git --version)"
+            echo "  - Current git config:"
+            git config --list | grep user || echo "    No user config found"
+            mv README.md.backup README.md
+            exit 1
+          fi
+          echo "✅ Git configuration completed"
+
+          # Verify git status and stage changes
+          echo "📊 Git status before staging:"
+          git status --porcelain README.md
+
+          echo "📤 Staging README.md changes..."
+          if ! git add README.md; then
+            echo "❌ ERROR: Failed to stage README.md"
+            echo "Debug information:"
+            echo "  - File exists: $(test -f README.md && echo 'yes' || echo 'no')"
+            echo "  - File readable: $(test -r README.md && echo 'yes' || echo 'no')"
+            echo "  - Git repository: $(git rev-parse --is-inside-work-tree 2>/dev/null || echo 'not a git repo')"
+            mv README.md.backup README.md
+            exit 1
+          fi
+          echo "✅ Changes staged successfully"
+
+          # Commit changes with comprehensive error handling
+          echo "💾 Committing changes..."
+          COMMIT_OUTPUT=$(git commit -m "docs: Add GitLab mirror badge to README" 2>&1)
+          COMMIT_EXIT_CODE=$?
+          
+          if [ $COMMIT_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Failed to commit changes"
+            echo "Exit code: $COMMIT_EXIT_CODE"
+            echo "Output: $COMMIT_OUTPUT"
+            
+            # Check if commit failed due to no changes
+            if git diff --cached --quiet; then
+              echo "ℹ️ No staged changes to commit (this is unexpected)"
+              rm -f README.md.backup
+              exit 0
+            fi
+            
+            echo "Debug information:"
+            echo "  - Staged changes:"
+            git diff --cached --stat
+            echo "  - Repository status:"
+            git status --porcelain
+            
+            mv README.md.backup README.md
+            exit 1
+          fi
+
+          echo "✅ Changes committed successfully"
+          echo "  - Commit hash: $(git rev-parse HEAD | cut -c1-8)"
+
+          # Push changes with comprehensive error handling
+          echo "🚀 Pushing changes to repository..."
+          PUSH_OUTPUT=$(git push origin HEAD 2>&1)
+          PUSH_EXIT_CODE=$?
+          
+          if [ $PUSH_EXIT_CODE -ne 0 ]; then
+            echo "❌ ERROR: Failed to push changes to repository"
+            echo "Exit code: $PUSH_EXIT_CODE"
+            echo "Output: $PUSH_OUTPUT"
+            echo "Common causes:"
+            echo "  - Branch protection rules requiring pull requests"
+            echo "  - Insufficient GITHUB_TOKEN permissions (needs 'contents: write')"
+            echo "  - Network connectivity issues"
+            echo "  - Concurrent pushes causing conflicts"
+            echo "  - Repository is archived or read-only"
+            
+            echo "📊 Debug information:"
+            echo "  - Current branch: $(git branch --show-current)"
+            echo "  - Remote URL: $(git remote get-url origin | sed 's/ghp_[^@]*@/***@/')"
+            echo "  - Repository status:"
+            git status --porcelain
+            echo "  - Recent commits:"
+            git log --oneline -3
+            echo "  - GITHUB_TOKEN permissions: $(echo $GITHUB_TOKEN | cut -c1-10)... (truncated)"
+            
+            # Restore backup and exit with error
+            mv README.md.backup README.md
+            exit 1
+          fi
+
+          echo "🎉 README.md updated with GitLab mirror badge successfully"
+          echo "📊 Push summary:"
+          echo "  - Branch: $(git branch --show-current)"
+          echo "  - Commit: $(git rev-parse HEAD | cut -c1-8)"
+          echo "  - Badge URL: https://gitlab.com/${GITLAB_USERNAME}/whisper-video-to-text"
+
+          # Clean up backup file
+          rm -f README.md.backup
+          echo "✅ Cleanup completed"
+
+      - name: Mirror Workflow Summary
+        if: always()
+        run: |
+          echo "📊 Mirror Workflow Execution Summary"
+          echo "===================================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Workflow Run: ${{ github.run_number }}"
+          echo "Event: ${{ github.event_name }}"
+          echo ""
+          
+          # Check workflow status and provide summary
+          echo "🔍 Mirror Workflow Results Summary:"
+          
+          # Credential validation
+          if [ -n "${{ secrets.GITLAB_USERNAME }}" ] && [ -n "${{ secrets.GITLAB_TOKEN }}" ]; then
+            echo "  ✅ GitLab credentials: Configured"
+          else
+            echo "  ❌ GitLab credentials: Missing or incomplete"
+          fi
+          
+          # Mirror job status
+          MIRROR_STATUS="${{ needs.mirror.result }}"
+          if [ "$MIRROR_STATUS" = "success" ]; then
+            echo "  ✅ GitLab mirror: Success"
+          elif [ "$MIRROR_STATUS" = "failure" ]; then
+            echo "  ❌ GitLab mirror: Failed"
+          elif [ "$MIRROR_STATUS" = "cancelled" ]; then
+            echo "  ⚠️ GitLab mirror: Cancelled"
+          else
+            echo "  ❓ GitLab mirror: $MIRROR_STATUS"
+          fi
+          
+          # README badge update
+          if [ -f "README.md" ]; then
+            if grep -q -E "(GitLab.*Mirror|gitlab\.com.*whisper-video-to-text)" README.md 2>/dev/null; then
+              echo "  ✅ README badge: Present"
+            else
+              echo "  ⚠️ README badge: Missing or update failed"
+            fi
+          else
+            echo "  ⚠️ README badge: README.md not found"
+          fi
+          
+          # Git configuration
+          GIT_USER=$(git config user.name 2>/dev/null || echo "not configured")
+          echo "  ℹ️ Git configuration: $GIT_USER"
+          
+          # Repository information
+          TOTAL_BRANCHES=$(git branch -r | wc -l)
+          TOTAL_TAGS=$(git tag | wc -l)
+          echo "  ℹ️ Repository stats: $TOTAL_BRANCHES branches, $TOTAL_TAGS tags"
+          
+          echo ""
+          echo "🎯 Mirror workflow completed"
+          echo "📅 Execution time: $(date)"
+          echo "🔗 Target repository: https://gitlab.com/${{ secrets.GITLAB_USERNAME }}/whisper-video-to-text"
+          
+          # Provide troubleshooting information if there were failures
+          if [ "${{ job.status }}" != "success" ] || [ "$MIRROR_STATUS" != "success" ]; then
+            echo ""
+            echo "🚨 Mirror Troubleshooting Information:"
+            echo "  - Verify GitLab credentials are correctly configured"
+            echo "  - Check GitLab repository exists and is accessible"
+            echo "  - Ensure GitLab token has 'write_repository' permissions"
+            echo "  - Verify network connectivity to GitLab"
+            echo "  - Check for GitLab API rate limiting"
+            echo "  - Review branch protection rules on GitLab"
           fi
