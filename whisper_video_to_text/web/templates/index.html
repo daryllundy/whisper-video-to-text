@@ -1,92 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Whisper Video ► Text (Web)</title>
-    <meta name="viewport" content="width=900, initial-scale=1">
-    <link href="/static/styles.css" rel="stylesheet">
-</head>
-<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-start py-8">
-    <div class="w-full max-w-xl bg-white rounded-lg shadow p-8">
-        <h1 class="text-2xl font-bold mb-4 text-center">Whisper Video ► Text</h1>
-        <form id="transcribe-form" class="space-y-4" hx-post="/api/transcribe" hx-swap="none" enctype="multipart/form-data">
-            <div>
-                <label class="block font-medium mb-1">Video File (MP4):</label>
-                <input type="file" name="file" accept=".mp4,video/mp4" class="block w-full border rounded px-2 py-1">
-            </div>
-            <div class="text-center text-gray-500">or</div>
-            <div>
-                <label class="block font-medium mb-1">YouTube URL:</label>
-                <input type="url" name="url" placeholder="https://youtube.com/..." class="block w-full border rounded px-2 py-1">
-            </div>
-            <div>
-                <label class="block font-medium mb-1">Whisper Model:</label>
-                <select name="model" class="block w-full border rounded px-2 py-1">
-                    <option value="tiny">tiny</option>
-                    <option value="base" selected>base</option>
-                    <option value="small">small</option>
-                    <option value="medium">medium</option>
-                    <option value="large">large</option>
-                </select>
-            </div>
-            <div>
-                <label class="block font-medium mb-1">Language Code (optional):</label>
-                <input type="text" name="language" placeholder="e.g. en, es, fr" class="block w-full border rounded px-2 py-1">
-            </div>
-            <div>
-                <label class="block font-medium mb-1">Output Formats:</label>
-                <div class="flex gap-4">
-                    <label><input type="checkbox" name="formats" value="txt" checked> TXT</label>
-                    <label><input type="checkbox" name="formats" value="srt"> SRT</label>
-                    <label><input type="checkbox" name="formats" value="vtt"> VTT</label>
-                </div>
-            </div>
-            <div>
-                <label class="inline-flex items-center">
-                    <input type="checkbox" name="timestamps" value="1" class="mr-2">
-                    Include timestamps in TXT
-                </label>
-            </div>
-            <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition">Transcribe</button>
-        </form>
-        <div id="progress-section" class="mt-6 hidden">
-            <div class="mb-2 font-medium">Progress:</div>
-            <progress id="progress-bar" value="0" max="100" class="w-full h-4"></progress>
-            <div id="progress-text" class="mt-2 text-sm text-gray-600"></div>
-        </div>
-        <div id="result-section" class="mt-6 hidden">
-            <div class="mb-2 font-medium">Transcript:</div>
-            <textarea id="transcript" class="w-full h-40 border rounded p-2" readonly></textarea>
-            <div id="download-links" class="mt-2"></div>
-        </div>
-    </div>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script>
-    // Handle form submission and SSE progress updates
-    document.getElementById('transcribe-form').addEventListener('htmx:afterRequest', function(evt) {
-        try {
-            const response = JSON.parse(evt.detail.xhr.responseText);
-            if (!response.job_id) return;
-            document.getElementById('progress-section').classList.remove('hidden');
-            document.getElementById('progress-bar').value = 0;
-            document.getElementById('progress-text').textContent = '';
-            document.getElementById('result-section').classList.add('hidden');
-            const es = new EventSource(`/events/${response.job_id}`);
-            es.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                document.getElementById('progress-bar').value = data.progress;
-                document.getElementById('progress-text').textContent = data.message || data.status;
-                if (data.status === 'complete') {
-                    es.close();
-                    document.getElementById('progress-section').classList.add('hidden');
-                    document.getElementById('result-section').classList.remove('hidden');
-                    document.getElementById('transcript').value = data.result ? (data.result.text || '') : '';
-                }
-            };
-        } catch (e) {
-            // ignore
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whisper Video → Text</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    /* Fallback minimal styles if static not served */
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    header { margin-bottom: 1rem; }
+    .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; max-width: 720px; }
+    label { display: block; margin: .5rem 0 .25rem; font-weight: 600; }
+    input[type="text"], select { width: 100%; padding: .5rem; border: 1px solid #d1d5db; border-radius: 6px; }
+    .row { display: flex; gap: 1rem; align-items: center; }
+    .row > * { flex: 1; }
+    .btn { background: #111827; color: #fff; border: none; padding: .6rem 1rem; border-radius: 6px; cursor: pointer; }
+    .muted { color: #6b7280; font-size: .9rem; }
+    .progress { height: 10px; background: #e5e7eb; border-radius: 6px; overflow: hidden; margin-top: .5rem; }
+    .bar { height: 100%; width: 0%; background: #2563eb; transition: width .2s ease; }
+    pre { white-space: pre-wrap; background: #0b1020; color: #e5e7eb; padding: 1rem; border-radius: 6px; }
+  </style>
+  <script>
+    async function startJob(e) {
+      e.preventDefault();
+      const form = document.getElementById('form');
+      const data = new FormData(form);
+      // Ensure at least one of file or url provided
+      if (!data.get('file') && !data.get('url')) {
+        alert('Please choose a file or provide a URL.');
+        return;
+      }
+      const res = await fetch('/api/transcribe', { method: 'POST', body: data });
+      const { job_id } = await res.json();
+      listen(job_id);
+      document.getElementById('status').textContent = 'Queued…';
+    }
+
+    function listen(jobId) {
+      const events = new EventSource(`/events/${jobId}`);
+      const bar = document.getElementById('bar');
+      const status = document.getElementById('status');
+      const message = document.getElementById('message');
+      const output = document.getElementById('output');
+      events.onmessage = (ev) => {
+        const data = JSON.parse(ev.data);
+        bar.style.width = (data.progress || 0) + '%';
+        status.textContent = data.status || '';
+        message.textContent = data.message || '';
+        if (data.result && data.result.text) {
+          output.textContent = data.result.text;
         }
-    });
-    </script>
-</body>
-</html>
+        if (data.status === 'complete' || data.status === 'error') {
+          events.close();
+        }
+      };
+    }
+  </script>
+  </head>
+  <body>
+    <header>
+      <h1>Whisper Video → Text</h1>
+      <p class="muted">Local Whisper transcription with YouTube download support.</p>
+    </header>
+    <main>
+      <section class="card">
+        <form id="form" onsubmit="startJob(event)">
+          <label for="file">Upload MP4</label>
+          <input id="file" name="file" type="file" accept="video/mp4" />
+
+          <div style="text-align:center; margin: .5rem 0;" class="muted">— or —</div>
+
+          <label for="url">YouTube URL</label>
+          <input id="url" name="url" type="text" placeholder="https://youtube.com/watch?v=..." />
+
+          <div class="row">
+            <div>
+              <label for="model">Model</label>
+              <select id="model" name="model">
+                <option value="tiny">tiny</option>
+                <option value="base" selected>base</option>
+                <option value="small">small</option>
+                <option value="medium">medium</option>
+                <option value="large">large</option>
+              </select>
+            </div>
+            <div>
+              <label for="language">Language (optional)</label>
+              <input id="language" name="language" type="text" placeholder="en" />
+            </div>
+          </div>
+
+          <div class="row" style="align-items:center;">
+            <label><input type="checkbox" name="timestamps" /> Include timestamps</label>
+            <span class="muted">Formats default to txt</span>
+          </div>
+
+          <button class="btn" type="submit">Start Transcription</button>
+          <div class="progress"><div id="bar" class="bar"></div></div>
+          <div class="muted"><strong id="status"></strong> <span id="message"></span></div>
+        </form>
+      </section>
+
+      <section class="card" style="margin-top:1rem;">
+        <h3>Output</h3>
+        <pre id="output">Waiting for results…</pre>
+      </section>
+    </main>
+  </body>
+  </html>

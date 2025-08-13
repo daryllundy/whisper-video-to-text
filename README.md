@@ -218,6 +218,14 @@ whisper-video-to-text/
 │   ├── convert.py             # Video to audio conversion
 │   ├── download.py            # YouTube download functionality
 │   └── transcribe.py          # Whisper transcription
+│   └── web/                   # Optional web UI
+│       ├── main.py            # FastAPI app
+│       ├── views.py           # Routes, background job
+│       ├── progress.py        # In-memory job/progress tracking
+│       ├── templates/
+│       │   └── index.html     # Minimal UI
+│       └── static/
+│           └── style.css      # Basic styles
 ├── tests/                     # Test suite
 │   ├── test_convert.py        # Conversion tests
 │   ├── test_download.py       # Download tests
@@ -248,6 +256,33 @@ pytest tests/test_transcribe.py
 
 # Run with verbose output
 pytest -v
+```
+
+---
+
+## 🧰 Development
+
+### Pre-commit hooks
+
+This repo is configured with pre-commit to keep code quality high.
+
+```bash
+uv venv && source .venv/bin/activate
+uv pip install -e .[dev]
+pre-commit install
+pre-commit run --all-files
+```
+
+### Makefile shortcuts
+
+```bash
+make install     # Install dev deps
+make hooks       # Install + run pre-commit on all files
+make lint        # Ruff lint
+make format      # Ruff --fix + Black
+make typecheck   # mypy
+make test        # pytest -v
+make cov         # pytest with coverage
 ```
 
 ---
