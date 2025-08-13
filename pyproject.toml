@@ -25,6 +25,13 @@ web = [
     "python-multipart",
     "jinja2"
 ]
+dev = [
+    "ruff>=0.4",
+    "black>=24.0",
+    "mypy>=1.8",
+    "pytest>=7.4",
+    "pytest-cov>=4.1"
+]
 
 [tool.setuptools]
 packages = ["whisper_video_to_text"]
@@ -32,3 +39,34 @@ packages = ["whisper_video_to_text"]
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+exclude = [
+  ".git",
+  ".venv",
+  "build",
+  "dist",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.9"
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
