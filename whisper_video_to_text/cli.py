@@ -98,9 +98,11 @@ Available Whisper models:
         if args.output:
             base = Path(args.output).with_suffix('')
         else:
-            # Save in the current working directory with timestamped name
+            # Save in ~/research directory with timestamped name
+            research_dir = Path.home() / "research"
+            research_dir.mkdir(exist_ok=True)
             timestamp = int(time.time())  # Unix epoch seconds
-            base = Path.cwd() / f"transcript-{timestamp}"
+            base = research_dir / f"transcript-{timestamp}"
 
         # Save in all requested formats
         for fmt in set(args.format):

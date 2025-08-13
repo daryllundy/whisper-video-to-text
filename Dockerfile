@@ -2,22 +2,48 @@
 
 FROM python:3.9-slim
 
-# Install system dependencies
-RUN apt-get update && \
-    apt-get install -y ffmpeg git && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies with error handling
+RUN set -e && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        git \
+        curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    # Verify ffmpeg installation
+    ffmpeg -version && \
+    echo "✓ System dependencies installed successfully"
 
-# Install uv
-RUN pip install uv
+# Install uv with error handling
+RUN set -e && \
+    pip install --no-cache-dir uv && \
+    uv --version && \
+    echo "✓ uv installed successfully"
 
 # Set workdir
 WORKDIR /app
 
-# Copy project files
+# Copy application code
 COPY . /app
 
-# Install Python dependencies
-RUN uv pip install .[dev]
+# Install Python dependencies with error handling
+RUN set -e && \
+    uv pip install --system --no-cache . && \
+    echo "✓ Python dependencies installed successfully"
 
-# Default command
-ENTRYPOINT ["python", "-m", "whisper_video_to_text.cli"]
+# Verify installation and create non-root user for security
+RUN set -e && \
+    python -c "import whisper_video_to_text; print('Package imported successfully')" && \
+    useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app && \
+    echo "✓ Application setup completed"
+
+# Switch to non-root user
+USER appuser
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import whisper_video_to_text" || exit 1
+
+# Default command with proper entry point
+ENTRYPOINT ["python", "-m", "whisper_video_to_text"]

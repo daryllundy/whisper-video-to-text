@@ -26,12 +26,12 @@ web = [
     "jinja2"
 ]
 dev = [
-    "ruff>=0.4",
     "black>=24.0",
     "mypy>=1.8",
+    "pre-commit>=3.7",
     "pytest>=7.4",
     "pytest-cov>=4.1",
-    "pre-commit>=3.7"
+    "ruff>=0.4",
 ]
 
 [tool.setuptools]

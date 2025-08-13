@@ -108,3 +108,42 @@ Thumbs.db
 # Ignore test output
 tests/__pycache__/
 .history/
+
+# Ignore example outputs and temporary files
+examples/*.txt
+examples/*.srt
+examples/*.vtt
+transcripts/
+
+# Ignore IDE files
+*.swp
+*.swo
+*~
+.idea/
+
+# Ignore build artifacts
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Ignore temporary downloads
+downloads/
+temp/
+tmp/
+.claude/settings.local.json
