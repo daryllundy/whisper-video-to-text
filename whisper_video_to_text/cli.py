@@ -1,16 +1,16 @@
-import sys
-import logging
 import argparse
-from pathlib import Path
-import datetime
+import logging
+import sys
 import time
-from whisper_video_to_text.download import download_video
+from pathlib import Path
+
 from whisper_video_to_text.convert import convert_mp4_to_mp3
+from whisper_video_to_text.download import download_video
 from whisper_video_to_text.transcribe import (
-    transcribe_audio,
-    save_transcription,
     save_srt,
+    save_transcription,
     save_vtt,
+    transcribe_audio,
 )
 
 def main():

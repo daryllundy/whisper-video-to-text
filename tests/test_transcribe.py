@@ -1,7 +1,8 @@
-import pytest
 from unittest import mock
+
+import pytest
+
 from whisper_video_to_text import transcribe
-from pathlib import Path
 
 def test_transcribe_audio_success(tmp_path):
     audio_file = tmp_path / "audio.mp3"

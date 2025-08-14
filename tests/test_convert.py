@@ -1,8 +1,9 @@
-import pytest
 import subprocess
 from unittest import mock
+
+import pytest
+
 from whisper_video_to_text import convert
-from pathlib import Path
 
 def test_convert_mp4_to_mp3_success(tmp_path):
     input_file = tmp_path / "input.mp4"

@@ -1,6 +1,8 @@
-import pytest
 import subprocess
 from unittest import mock
+
+import pytest
+
 from whisper_video_to_text import download
 
 def test_download_video_success(tmp_path):
