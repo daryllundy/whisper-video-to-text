@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whisper-web
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - transcripts:/app/transcripts
+      - uploads:/app/uploads
+      - whisper-cache:/home/appuser/.cache/whisper
+    environment:
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - PORT=${PORT:-8000}
+      - HOST=${HOST:-0.0.0.0}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: ["uvicorn", "whisper_video_to_text.web.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+volumes:
+  transcripts:
+    driver: local
+  uploads:
+    driver: local
+  whisper-cache:
+    driver: local
+
+networks:
+  default:
+    name: whisper-network
