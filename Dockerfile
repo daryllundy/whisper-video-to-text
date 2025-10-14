@@ -26,9 +26,9 @@ WORKDIR /app
 # Copy application code
 COPY . /app
 
-# Install Python dependencies with error handling
+# Install Python dependencies with web extras by default
 RUN set -e && \
-    uv pip install --system --no-cache . && \
+    uv pip install --system --no-cache .[web] && \
     echo "✓ Python dependencies installed successfully"
 
 # Verify installation and create non-root user for security
@@ -41,9 +41,15 @@ RUN set -e && \
 # Switch to non-root user
 USER appuser
 
+# Expose web server port
+EXPOSE 8000
+
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import whisper_video_to_text" || exit 1
 
-# Default command with proper entry point
-ENTRYPOINT ["python", "-m", "whisper_video_to_text"]
+# Clear ENTRYPOINT to allow command override in docker-compose
+ENTRYPOINT []
+
+# Default command runs uvicorn web server
+CMD ["uvicorn", "whisper_video_to_text.web.main:app", "--host", "0.0.0.0", "--port", "8000"]

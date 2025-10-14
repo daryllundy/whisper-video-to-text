@@ -147,3 +147,4 @@ downloads/
 temp/
 tmp/
 .claude/settings.local.json
+.kiro/
