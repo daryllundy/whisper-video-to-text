@@ -15,5 +15,16 @@ from whisper_video_to_text.web.views import router as web_router
 app.include_router(web_router)
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("whisper_video_to_text.web.main:app", host="127.0.0.1", port=8000, reload=True)
+    
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    reload = os.getenv("RELOAD", "false").lower() == "true"
+    
+    uvicorn.run(
+        "whisper_video_to_text.web.main:app",
+        host=host,
+        port=port,
+        reload=reload
+    )
