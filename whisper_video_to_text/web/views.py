@@ -5,6 +5,10 @@ from whisper_video_to_text.web.progress import create_job, update_progress
 from fastapi.responses import StreamingResponse
 import json
 from whisper_video_to_text.web.progress import progress_stream, get_job
+import os
+
+# Ensure uploads directory exists at module initialization
+os.makedirs('uploads', exist_ok=True)
 
 router = APIRouter()
 
@@ -37,7 +41,8 @@ def background_stub(job_id, file=None, url=None, model="base", language=None, fo
                 mp4_path = download_video(url, output_dir=tempdir)
             elif file:
                 await update_progress(job_id, 10, "uploading", "Saving uploaded file...")
-                dest = os.path.join(tempdir, file.filename)
+                # Save uploaded file to uploads directory
+                dest = os.path.join('uploads', file.filename)
                 with open(dest, "wb") as f_out:
                     shutil.copyfileobj(file.file, f_out)
                 mp4_path = dest
