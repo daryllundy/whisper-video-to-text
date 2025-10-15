@@ -1,8 +1,10 @@
+import logging
 import os
 import subprocess
 from pathlib import Path
-import logging
+
 from tqdm import tqdm
+
 
 def download_video(url: str, output_dir: str = ".") -> str:
     """
@@ -27,7 +29,8 @@ def download_video(url: str, output_dir: str = ".") -> str:
 
     try:
         # Use tqdm to show a spinner while downloading
-        with tqdm(total=1, desc="yt-dlp", bar_format="{l_bar}{bar} [time left: {remaining}]") as pbar:
+        bar_format = "{l_bar}{bar} [time left: {remaining}]"
+        with tqdm(total=1, desc="yt-dlp", bar_format=bar_format) as pbar:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             pbar.update(1)
         # Extract filename from yt-dlp output

@@ -4,6 +4,7 @@ import pytest
 
 from whisper_video_to_text import transcribe
 
+
 def test_transcribe_audio_success(tmp_path):
     audio_file = tmp_path / "audio.mp3"
     audio_file.write_text("dummy")

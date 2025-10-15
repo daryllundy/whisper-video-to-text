@@ -5,7 +5,9 @@
       "Bash(mv:*)",
       "Bash(true)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(ruff check --fix .)",
+      "Bash(ruff check .)"
     ],
     "deny": []
   }

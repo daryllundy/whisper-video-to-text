@@ -1,14 +1,16 @@
-from pathlib import Path
-import whisper
 import logging
-from typing import Optional, Any, Dict, List
+from pathlib import Path
+from typing import Any, Optional
+
+import whisper
+
 
 def transcribe_audio(
     audio_file: str,
     model_name: str = "base",
     language: Optional[str] = None,
     verbose: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Transcribe audio using OpenAI Whisper.
 
@@ -42,7 +44,7 @@ def transcribe_audio(
     return result
 
 def save_transcription(
-    transcription: Dict[str, Any],
+    transcription: dict[str, Any],
     output_file: str,
     include_timestamps: bool = False
 ) -> None:
@@ -84,7 +86,7 @@ def save_transcription(
     logging.info(f"✓ Transcription saved to: {output_path}")
 
 def save_srt(
-    transcription: Dict[str, Any],
+    transcription: dict[str, Any],
     output_file: str
 ) -> None:
     """
@@ -107,7 +109,7 @@ def save_srt(
     logging.info(f"✓ SRT saved to: {output_path}")
 
 def save_vtt(
-    transcription: Dict[str, Any],
+    transcription: dict[str, Any],
     output_file: str
 ) -> None:
     """

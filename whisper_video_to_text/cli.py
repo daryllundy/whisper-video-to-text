@@ -13,6 +13,7 @@ from whisper_video_to_text.transcribe import (
     transcribe_audio,
 )
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert MP4 to MP3 and transcribe audio to text",
@@ -122,7 +123,7 @@ Available Whisper models:
             audio_file.unlink()
             logging.info(f"✓ Removed temporary audio file: {audio_file}")
 
-        logging.info(f"✅ Process complete! Output(s) ready for LLM analysis.")
+        logging.info("✅ Process complete! Output(s) ready for LLM analysis.")
 
     except KeyboardInterrupt:
         logging.error("✗ Process interrupted by user")
