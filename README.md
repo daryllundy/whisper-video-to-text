@@ -22,7 +22,7 @@ Whisper Video ► Text is a powerful command-line tool that bridges the gap betw
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/demo-whisper-video-to-text.svg)](demo.cast)
+![Demo](demo.gif)
 
 *YouTube download and transcription workflow with multiple output formats*
 
