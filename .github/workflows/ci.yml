@@ -485,11 +485,14 @@ jobs:
           fi
           echo "✓ Volume mount test passed"
           
-          # Test 5: Test container health check
+          # Test 5: Test container health check with long-running command
           echo "Test 5: Testing container health check..."
-          CONTAINER_ID=$(docker run -d --name test-health whisper-video-to-text:latest --help)
-          sleep 5
+          # Run container with sleep command to keep it alive for health check
+          CONTAINER_ID=$(docker run -d --name test-health --entrypoint="" whisper-video-to-text:latest sleep 15)
+          echo "Container started, waiting for health check..."
+          sleep 8
           HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' test-health 2>/dev/null || echo "no-healthcheck")
+          echo "Health status: $HEALTH_STATUS"
           docker stop test-health >/dev/null 2>&1 || true
           docker rm test-health >/dev/null 2>&1 || true
           if [ "$HEALTH_STATUS" = "unhealthy" ]; then
