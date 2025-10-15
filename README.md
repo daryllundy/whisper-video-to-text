@@ -1,10 +1,6 @@
 # Whisper Video ► Text 🎥
 
-[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
-[![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](#docker)
-[![GitLab Mirror](https://img.shields.io/badge/gitlab-mirror-orange.svg)](https://gitlab.com/daryllundy/whisper-video-to-text)
+[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org/) [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt) [![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml) [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](#docker) [![GitLab Mirror](https://img.shields.io/badge/gitlab-mirror-orange.svg)](https://gitlab.com/daryllundy/whisper-video-to-text)
 
 <div align="center">
 
@@ -19,10 +15,6 @@
 ## 📖 About The Project
 
 Whisper Video ► Text is a powerful command-line tool that bridges the gap between video content and text transcription. Whether you need to transcribe YouTube videos for research, create subtitles for accessibility, or extract text from local video files for documentation, this tool provides state-of-the-art accuracy using OpenAI's Whisper model.
-
-## Demo
-
-![Demo](demo.gif)
 
 *YouTube download and transcription workflow with multiple output formats*
 
@@ -74,7 +66,7 @@ Whisper Video ► Text is a powerful command-line tool that bridges the gap betw
 Before you begin, ensure you have the following installed:
 
 - **Python 3.9+** - [Download Python](https://python.org/downloads/)
-- **ffmpeg** - [Download & Install](https://ffmpeg.org/download.html)
+- **ffmpeg** - [Download &amp; Install](https://ffmpeg.org/download.html)
 - **uv** (recommended) - [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Verify Installation
@@ -224,38 +216,39 @@ Deploy the web application with docker-compose for simplified container orchestr
 ### Quick Start
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/daryllundy/whisper-video-to-text.git
    cd whisper-video-to-text
    ```
-
 2. **Create environment file (optional)**
+
    ```bash
    cp .env.example .env
    # Edit .env with your preferences
    ```
-
 3. **Start the application**
+
    ```bash
    docker-compose up -d
    ```
-
 4. **Visit the web interface**
-   
+
    Open [http://localhost:8000](http://localhost:8000) in your browser
 
 ### Environment Variables
 
 Configure the deployment by creating a `.env` file or setting environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8000` | Web server port |
-| `HOST` | `0.0.0.0` | Bind address (0.0.0.0 for all interfaces) |
-| `WHISPER_MODEL` | `base` | Whisper model variant (`tiny`, `base`, `small`, `medium`, `large`) |
-| `LOG_LEVEL` | `info` | Application log level (`debug`, `info`, `warning`, `error`) |
+| Variable          | Default     | Description                                                                  |
+| ----------------- | ----------- | ---------------------------------------------------------------------------- |
+| `PORT`          | `8000`    | Web server port                                                              |
+| `HOST`          | `0.0.0.0` | Bind address (0.0.0.0 for all interfaces)                                    |
+| `WHISPER_MODEL` | `base`    | Whisper model variant (`tiny`, `base`, `small`, `medium`, `large`) |
+| `LOG_LEVEL`     | `info`    | Application log level (`debug`, `info`, `warning`, `error`)          |
 
 **Example `.env` file:**
+
 ```bash
 PORT=8000
 WHISPER_MODEL=base
@@ -300,6 +293,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
 
 This configuration:
+
 - Mounts source code into the container
 - Enables automatic reload on code changes
 - Preserves your local development environment
@@ -308,17 +302,18 @@ This configuration:
 
 Docker volumes are used to persist data across container restarts:
 
-| Volume | Purpose | Location |
-|--------|---------|----------|
-| `transcripts` | Generated transcript files | `/app/transcripts` |
-| `uploads` | Uploaded video files | `/app/uploads` |
-| `whisper-cache` | Downloaded Whisper models | `/home/appuser/.cache/whisper` |
+| Volume            | Purpose                    | Location                         |
+| ----------------- | -------------------------- | -------------------------------- |
+| `transcripts`   | Generated transcript files | `/app/transcripts`             |
+| `uploads`       | Uploaded video files       | `/app/uploads`                 |
+| `whisper-cache` | Downloaded Whisper models  | `/home/appuser/.cache/whisper` |
 
 Volumes persist even when containers are stopped or removed (unless you use `docker-compose down -v`).
 
 ### Troubleshooting
 
 **Port already in use**
+
 ```bash
 # Change the port in .env file
 echo "PORT=9000" >> .env
@@ -326,25 +321,30 @@ docker-compose up -d
 ```
 
 **Permission errors**
+
 - Ensure Docker has proper permissions to access mounted directories
 - On Linux, you may need to add your user to the docker group: `sudo usermod -aG docker $USER`
 
 **Model download is slow**
+
 - First run downloads the Whisper model (can take several minutes depending on model size)
 - Models are cached in the `whisper-cache` volume for subsequent runs
 - Use a smaller model for faster initial setup: `WHISPER_MODEL=tiny`
 
 **Container fails to start**
+
 - Check logs: `docker-compose logs web`
 - Verify ffmpeg is installed in the container: `docker-compose exec web ffmpeg -version`
 - Ensure all required environment variables are set correctly
 
 **Out of memory errors**
+
 - Larger Whisper models require more RAM
 - Use a smaller model (`tiny` or `base`) or increase Docker memory limits
 - Add resource limits in docker-compose.yml if needed
 
 **Transcripts not persisting**
+
 - Verify volumes are created: `docker volume ls`
 - Check volume mounts: `docker-compose config`
 - Ensure you're not using `docker-compose down -v` which removes volumes
@@ -447,6 +447,7 @@ make cov         # pytest with coverage
 ### Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+
 - Code style and standards
 - Testing requirements
 - Pull request process
