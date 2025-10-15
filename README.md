@@ -1,7 +1,8 @@
 # Whisper Video ► Text 🎥
 
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org/)
+[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+[![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](#docker)
 [![GitLab Mirror](https://img.shields.io/badge/gitlab-mirror-orange.svg)](https://gitlab.com/daryllundy/whisper-video-to-text)
 
@@ -72,14 +73,14 @@ Whisper Video ► Text is a powerful command-line tool that bridges the gap betw
 
 Before you begin, ensure you have the following installed:
 
-- **Python 3.8+** - [Download Python](https://python.org/downloads/)
-- **ffmpeg** - [Download &amp; Install](https://ffmpeg.org/download.html)
+- **Python 3.9+** - [Download Python](https://python.org/downloads/)
+- **ffmpeg** - [Download & Install](https://ffmpeg.org/download.html)
 - **uv** (recommended) - [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
 
 ### Verify Installation
 
 ```bash
-python --version  # Should be 3.8+
+python --version  # Should be 3.9+
 ffmpeg -version   # Should show ffmpeg information
 uv --version      # Should show uv version
 ```
@@ -173,13 +174,13 @@ uv run whisper_video_to_text video.mp4 --output my_transcript.txt
 
 ### Output Files
 
-When `--output` is omitted, files are saved with default names based on the current Unix timestamp:
+When `--output` is omitted, files are saved in `~/research` directory with default names based on the current Unix timestamp:
 
-- **Text**: `transcript-<timestamp>.txt`
-- **SRT**: `transcript-<timestamp>.srt`
-- **VTT**: `transcript-<timestamp>.vtt`
+- **Text**: `~/research/transcript-<timestamp>.txt`
+- **SRT**: `~/research/transcript-<timestamp>.srt`
+- **VTT**: `~/research/transcript-<timestamp>.vtt`
 
-All files are saved in the current directory.
+When `--output` is specified, files are saved to that location with the specified name.
 
 ---
 
@@ -196,7 +197,13 @@ uv pip install .[web]
 ### Run the Web Server
 
 ```bash
-uv run whisper_video_to_text/web/main.py
+uv run python -m whisper_video_to_text.web.main
+```
+
+Or using uvicorn directly:
+
+```bash
+uvicorn whisper_video_to_text.web.main:app --host 0.0.0.0 --port 8000
 ```
 
 Visit [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
@@ -353,7 +360,7 @@ whisper-video-to-text/
 │   ├── cli.py                 # Command-line interface
 │   ├── convert.py             # Video to audio conversion
 │   ├── download.py            # YouTube download functionality
-│   └── transcribe.py          # Whisper transcription
+│   ├── transcribe.py          # Whisper transcription
 │   └── web/                   # Optional web UI
 │       ├── main.py            # FastAPI app
 │       ├── views.py           # Routes, background job
@@ -366,11 +373,17 @@ whisper-video-to-text/
 │   ├── test_convert.py        # Conversion tests
 │   ├── test_download.py       # Download tests
 │   └── test_transcribe.py     # Transcription tests
+├── .github/workflows/         # CI/CD automation
+│   ├── ci.yml                 # Main CI workflow
+│   └── mirror.yml             # GitLab mirror sync
 ├── Dockerfile                 # Docker container setup
+├── docker-entrypoint.sh       # Docker entrypoint script
+├── docker-compose.yml         # Production deployment
+├── docker-compose.dev.yml     # Development deployment
 ├── pyproject.toml            # Project configuration
 ├── README.md                 # Project documentation
 ├── LICENSE.txt               # MIT license
-├── tasks.md                  # Development roadmap
+├── CONTRIBUTING.md           # Contribution guidelines
 └── .gitignore               # Git ignore rules
 ```
 
@@ -409,6 +422,16 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+### Code Quality
+
+The project maintains high code quality standards with automated checks:
+
+- **Linting**: Ruff for fast Python linting
+- **Formatting**: Black for consistent code style
+- **Type Checking**: mypy for static type analysis
+- **Testing**: pytest with 80%+ coverage
+- **CI/CD**: GitHub Actions for automated testing and Docker builds
+
 ### Makefile shortcuts
 
 ```bash
@@ -420,6 +443,14 @@ make typecheck   # mypy
 make test        # pytest -v
 make cov         # pytest with coverage
 ```
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+- Code style and standards
+- Testing requirements
+- Pull request process
+- Development workflow
 
 ---
 
@@ -433,16 +464,23 @@ docker build -t whisper-video-to-text .
 
 ### Run with Docker
 
+The Docker image uses an intelligent entrypoint that supports both CLI and web server modes:
+
 ```bash
 # Show help
 docker run --rm whisper-video-to-text --help
 
 # Transcribe a local file (mount current directory)
-docker run --rm -v "$PWD:/app" whisper-video-to-text /app/video.mp4
+docker run --rm -v "$PWD:/workspace" whisper-video-to-text /workspace/video.mp4
 
 # Download and transcribe YouTube video
-docker run --rm -v "$PWD:/app" whisper-video-to-text "https://youtube.com/watch?v=..." --download
+docker run --rm -v "$PWD:/workspace" whisper-video-to-text "https://youtube.com/watch?v=..." --download
+
+# Run web server (use docker-compose for production)
+docker run --rm -p 8000:8000 whisper-video-to-text uvicorn whisper_video_to_text.web.main:app --host 0.0.0.0 --port 8000
 ```
+
+**Note:** The container runs as a non-root user (`appuser`) for security.
 
 ---
 
@@ -473,8 +511,10 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 - [OpenAI Whisper](https://github.com/openai/whisper) - For the amazing speech recognition model
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - For reliable YouTube downloading
 - [FFmpeg](https://ffmpeg.org/) - For audio/video processing
-- [Click](https://click.palletsprojects.com/) - For the beautiful CLI interface
+- [FastAPI](https://fastapi.tiangolo.com/) - For the modern web framework
 - [pytest](https://pytest.org/) - For the robust testing framework
+- [uv](https://github.com/astral-sh/uv) - For blazing fast Python package management
+- [Ruff](https://github.com/astral-sh/ruff) - For lightning-fast Python linting
 
 ---
 
