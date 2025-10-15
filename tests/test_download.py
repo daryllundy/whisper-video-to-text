@@ -17,6 +17,7 @@ def test_download_video_success(tmp_path):
         filename = download.download_video(url, str(output_dir))
         assert filename == "test.mp4"
 
+
 def test_download_video_failure(tmp_path):
     url = "http://example.com/video"
     output_dir = tmp_path

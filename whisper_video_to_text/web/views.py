@@ -19,19 +19,23 @@ from whisper_video_to_text.web.progress import (
 )
 
 # Ensure uploads directory exists at module initialization
-os.makedirs('uploads', exist_ok=True)
+os.makedirs("uploads", exist_ok=True)
 
 router = APIRouter()
+
 
 @router.get("/events/{job_id}")
 async def events(job_id: str):
     job = get_job(job_id)
     if not job:
         return JSONResponse({"error": "Job not found"}, status_code=404)
+
     async def event_generator():
         async for update in progress_stream(job_id):
             yield f"data: {json.dumps(update)}\n\n"
+
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 def background_stub(
     job_id,
@@ -53,7 +57,7 @@ def background_stub(
             elif file:
                 await update_progress(job_id, 10, "uploading", "Saving uploaded file...")
                 # Save uploaded file to uploads directory
-                dest = os.path.join('uploads', file.filename)
+                dest = os.path.join("uploads", file.filename)
                 with open(dest, "wb") as f_out:
                     shutil.copyfileobj(file.file, f_out)
                 mp4_path = dest
@@ -64,9 +68,7 @@ def background_stub(
             await update_progress(job_id, 30, "converting", "Extracting audio...")
             mp3_path = convert_mp4_to_mp3(mp4_path, verbose=False)
 
-            await update_progress(
-                job_id, 60, "transcribing", "Transcribing audio..."
-            )
+            await update_progress(job_id, 60, "transcribing", "Transcribing audio...")
             result = transcribe_audio(
                 str(mp3_path), model_name=model, language=language, verbose=False
             )
@@ -79,7 +81,9 @@ def background_stub(
             await update_progress(job_id, 100, "error", f"Error: {e}")
         finally:
             shutil.rmtree(tempdir, ignore_errors=True)
+
     asyncio.run(run())
+
 
 @router.post("/api/transcribe")
 async def transcribe_api(
@@ -108,6 +112,6 @@ async def transcribe_api(
         model=model,
         language=language,
         formats=formats,
-        timestamps=timestamps
+        timestamps=timestamps,
     )
     return JSONResponse({"job_id": job_id})

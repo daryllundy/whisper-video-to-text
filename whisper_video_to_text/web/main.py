@@ -12,21 +12,18 @@ app = FastAPI(title="Whisper Video to Text Web")
 templates = Jinja2Templates(directory="whisper_video_to_text/web/templates")
 app.mount("/static", StaticFiles(directory="whisper_video_to_text/web/static"), name="static")
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+
 app.include_router(web_router)
 
 if __name__ == "__main__":
-    
+
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     reload = os.getenv("RELOAD", "false").lower() == "true"
-    
-    uvicorn.run(
-        "whisper_video_to_text.web.main:app",
-        host=host,
-        port=port,
-        reload=reload
-    )
+
+    uvicorn.run("whisper_video_to_text.web.main:app", host=host, port=port, reload=reload)
