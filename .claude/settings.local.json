@@ -7,7 +7,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(ruff check --fix .)",
-      "Bash(ruff check .)"
+      "Bash(ruff check .)",
+      "Bash(agg:*)"
     ],
     "deny": []
   }
