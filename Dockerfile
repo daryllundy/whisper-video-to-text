@@ -23,6 +23,10 @@ RUN set -e && \
 # Set workdir
 WORKDIR /app
 
+# Copy entrypoint script first and make it executable
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Copy application code
 COPY . /app
 
@@ -48,8 +52,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import whisper_video_to_text" || exit 1
 
-# Clear ENTRYPOINT to allow command override in docker-compose
-ENTRYPOINT []
+# Set entrypoint script
+ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Default command runs uvicorn web server
-CMD ["uvicorn", "whisper_video_to_text.web.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command shows help
+CMD ["--help"]

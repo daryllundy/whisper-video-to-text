@@ -1,13 +1,11 @@
-from pathlib import Path
-import subprocess
 import logging
+import subprocess
+from pathlib import Path
+
 from tqdm import tqdm
 
-def convert_mp4_to_mp3(
-    input_file: str,
-    output_file: str = None,
-    verbose: bool = False
-) -> Path:
+
+def convert_mp4_to_mp3(input_file: str, output_file: str = None, verbose: bool = False) -> Path:
     """
     Convert MP4 to MP3 using ffmpeg, with a progress bar.
 
@@ -25,38 +23,41 @@ def convert_mp4_to_mp3(
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
     if output_file is None:
-        output_path = input_path.with_suffix('.mp3')
+        output_path = input_path.with_suffix(".mp3")
     else:
         output_path = Path(output_file)
 
     # Get duration of input file (in seconds) for progress bar
     try:
         import ffmpeg
+
         probe = ffmpeg.probe(str(input_path))
-        duration = float(probe['format']['duration'])
+        duration = float(probe["format"]["duration"])
     except Exception:
         duration = None
 
     cmd = [
-        'ffmpeg',
-        '-i', str(input_path),
-        '-vn',
-        '-acodec', 'libmp3lame',
-        '-ab', '192k',
-        '-ar', '44100',
-        '-y',
-        str(output_path)
+        "ffmpeg",
+        "-i",
+        str(input_path),
+        "-vn",
+        "-acodec",
+        "libmp3lame",
+        "-ab",
+        "192k",
+        "-ar",
+        "44100",
+        "-y",
+        str(output_path),
     ]
 
     if not verbose:
-        cmd.extend(['-loglevel', 'error'])
+        cmd.extend(["-loglevel", "error"])
 
     logging.info(f"Converting {input_path.name} to MP3...")
 
     if duration:
         # Use tqdm to show progress bar based on ffmpeg output
-        import shlex
-        import threading
 
         def run_ffmpeg_with_progress():
             process = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
@@ -76,6 +77,7 @@ def convert_mp4_to_mp3(
             pbar.close()
             if process.returncode != 0:
                 raise subprocess.CalledProcessError(process.returncode, cmd)
+
         run_ffmpeg_with_progress()
     else:
         try:

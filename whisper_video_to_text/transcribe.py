@@ -1,14 +1,13 @@
-from pathlib import Path
-import whisper
 import logging
-from typing import Optional, Any, Dict, List
+from pathlib import Path
+from typing import Any, Optional
+
+import whisper
+
 
 def transcribe_audio(
-    audio_file: str,
-    model_name: str = "base",
-    language: Optional[str] = None,
-    verbose: bool = False
-) -> Dict[str, Any]:
+    audio_file: str, model_name: str = "base", language: Optional[str] = None, verbose: bool = False
+) -> dict[str, Any]:
     """
     Transcribe audio using OpenAI Whisper.
 
@@ -31,20 +30,14 @@ def transcribe_audio(
 
     logging.info(f"Transcribing {audio_path.name}...")
 
-    result = model.transcribe(
-        str(audio_path),
-        language=language,
-        verbose=verbose,
-        fp16=False
-    )
+    result = model.transcribe(str(audio_path), language=language, verbose=verbose, fp16=False)
 
     logging.info("✓ Transcription complete")
     return result
 
+
 def save_transcription(
-    transcription: Dict[str, Any],
-    output_file: str,
-    include_timestamps: bool = False
+    transcription: dict[str, Any], output_file: str, include_timestamps: bool = False
 ) -> None:
     """
     Save transcription to text file.
@@ -56,15 +49,15 @@ def save_transcription(
     """
     output_path = Path(output_file)
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         if include_timestamps:
             f.write("TRANSCRIPTION WITH TIMESTAMPS\n")
-            f.write("="*50 + "\n\n")
+            f.write("=" * 50 + "\n\n")
 
-            for segment in transcription['segments']:
-                start = segment['start']
-                end = segment['end']
-                text = segment['text'].strip()
+            for segment in transcription["segments"]:
+                start = segment["start"]
+                end = segment["end"]
+                text = segment["text"].strip()
 
                 start_time = f"{int(start//60):02d}:{int(start%60):02d}"
                 end_time = f"{int(end//60):02d}:{int(end%60):02d}"
@@ -72,21 +65,19 @@ def save_transcription(
                 f.write(f"[{start_time} - {end_time}] {text}\n")
         else:
             f.write("TRANSCRIPTION\n")
-            f.write("="*50 + "\n\n")
-            f.write(transcription['text'].strip())
+            f.write("=" * 50 + "\n\n")
+            f.write(transcription["text"].strip())
 
-        f.write("\n\n" + "="*50 + "\n")
+        f.write("\n\n" + "=" * 50 + "\n")
         f.write("METADATA\n")
         f.write(f"Language: {transcription.get('language', 'auto-detected')}\n")
-        if 'segments' in transcription:
+        if "segments" in transcription:
             f.write(f"Duration: {transcription['segments'][-1]['end']:.1f} seconds\n")
 
     logging.info(f"✓ Transcription saved to: {output_path}")
 
-def save_srt(
-    transcription: Dict[str, Any],
-    output_file: str
-) -> None:
+
+def save_srt(transcription: dict[str, Any], output_file: str) -> None:
     """
     Save transcription to SRT subtitle file.
 
@@ -106,10 +97,8 @@ def save_srt(
             f.write(f"{text}\n\n")
     logging.info(f"✓ SRT saved to: {output_path}")
 
-def save_vtt(
-    transcription: Dict[str, Any],
-    output_file: str
-) -> None:
+
+def save_vtt(transcription: dict[str, Any], output_file: str) -> None:
     """
     Save transcription to VTT subtitle file.
 
@@ -129,12 +118,14 @@ def save_vtt(
             f.write(f"{text}\n\n")
     logging.info(f"✓ VTT saved to: {output_path}")
 
+
 def _format_srt_time(seconds: float) -> str:
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = int(seconds % 60)
     ms = int((seconds - int(seconds)) * 1000)
     return f"{h:02}:{m:02}:{s:02},{ms:03}"
+
 
 def _format_vtt_time(seconds: float) -> str:
     h = int(seconds // 3600)

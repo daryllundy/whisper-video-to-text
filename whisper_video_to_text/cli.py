@@ -13,6 +13,7 @@ from whisper_video_to_text.transcribe import (
     transcribe_audio,
 )
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert MP4 to MP3 and transcribe audio to text",
@@ -39,26 +40,37 @@ Examples:
 
 Available Whisper models:
   tiny, base, small, medium, large
-        """
+        """,
     )
 
-    parser.add_argument('input', help='MP4 file path or video URL (with --download)')
-    parser.add_argument('-o', '--output', help='Output text file (default: input_name.txt)')
-    parser.add_argument('-m', '--model', default='base',
-                       choices=['tiny', 'base', 'small', 'medium', 'large'],
-                       help='Whisper model to use (default: base)')
-    parser.add_argument('-l', '--language', help='Language code (e.g., en, es, fr)')
-    parser.add_argument('-t', '--timestamps', action='store_true',
-                       help='Include timestamps in transcription')
-    parser.add_argument('-k', '--keep-audio', action='store_true',
-                       help='Keep intermediate MP3 file')
-    parser.add_argument('-d', '--download', action='store_true',
-                       help='Download video from URL first')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                       help='Show detailed output')
-    parser.add_argument('--logfile', help='Append logs to this file (default: none)', default=None)
-    parser.add_argument('--format', action='append', choices=['txt', 'srt', 'vtt'], default=['txt'],
-                       help='Output format(s): txt, srt, vtt. Can be specified multiple times.')
+    parser.add_argument("input", help="MP4 file path or video URL (with --download)")
+    parser.add_argument("-o", "--output", help="Output text file (default: input_name.txt)")
+    parser.add_argument(
+        "-m",
+        "--model",
+        default="base",
+        choices=["tiny", "base", "small", "medium", "large"],
+        help="Whisper model to use (default: base)",
+    )
+    parser.add_argument("-l", "--language", help="Language code (e.g., en, es, fr)")
+    parser.add_argument(
+        "-t", "--timestamps", action="store_true", help="Include timestamps in transcription"
+    )
+    parser.add_argument(
+        "-k", "--keep-audio", action="store_true", help="Keep intermediate MP3 file"
+    )
+    parser.add_argument(
+        "-d", "--download", action="store_true", help="Download video from URL first"
+    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed output")
+    parser.add_argument("--logfile", help="Append logs to this file (default: none)", default=None)
+    parser.add_argument(
+        "--format",
+        action="append",
+        choices=["txt", "srt", "vtt"],
+        default=["txt"],
+        help="Output format(s): txt, srt, vtt. Can be specified multiple times.",
+    )
 
     args = parser.parse_args()
 
@@ -66,11 +78,9 @@ Available Whisper models:
     log_level = logging.INFO if args.verbose else logging.WARNING
     handlers = [logging.StreamHandler(sys.stdout)]
     if args.logfile:
-        handlers.append(logging.FileHandler(args.logfile, mode='a', encoding='utf-8'))
+        handlers.append(logging.FileHandler(args.logfile, mode="a", encoding="utf-8"))
     logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=handlers
+        level=log_level, format="%(asctime)s [%(levelname)s] %(message)s", handlers=handlers
     )
 
     try:
@@ -82,21 +92,18 @@ Available Whisper models:
 
         # Convert MP4 to MP3
         video_path = Path(video_file)
-        audio_file = video_path.with_suffix('.mp3')
+        audio_file = video_path.with_suffix(".mp3")
 
         convert_mp4_to_mp3(video_file, str(audio_file), verbose=args.verbose)
 
         # Transcribe audio
         transcription = transcribe_audio(
-            str(audio_file),
-            model_name=args.model,
-            language=args.language,
-            verbose=args.verbose
+            str(audio_file), model_name=args.model, language=args.language, verbose=args.verbose
         )
 
         # Determine output base filename
         if args.output:
-            base = Path(args.output).with_suffix('')
+            base = Path(args.output).with_suffix("")
         else:
             # Save in ~/research directory with timestamped name
             research_dir = Path.home() / "research"
@@ -106,23 +113,21 @@ Available Whisper models:
 
         # Save in all requested formats
         for fmt in set(args.format):
-            if fmt == 'txt':
+            if fmt == "txt":
                 save_transcription(
-                    transcription,
-                    str(base.with_suffix('.txt')),
-                    include_timestamps=args.timestamps
+                    transcription, str(base.with_suffix(".txt")), include_timestamps=args.timestamps
                 )
-            elif fmt == 'srt':
-                save_srt(transcription, str(base.with_suffix('.srt')))
-            elif fmt == 'vtt':
-                save_vtt(transcription, str(base.with_suffix('.vtt')))
+            elif fmt == "srt":
+                save_srt(transcription, str(base.with_suffix(".srt")))
+            elif fmt == "vtt":
+                save_vtt(transcription, str(base.with_suffix(".vtt")))
 
         # Clean up audio file if requested
         if not args.keep_audio and audio_file.exists():
             audio_file.unlink()
             logging.info(f"✓ Removed temporary audio file: {audio_file}")
 
-        logging.info(f"✅ Process complete! Output(s) ready for LLM analysis.")
+        logging.info("✅ Process complete! Output(s) ready for LLM analysis.")
 
     except KeyboardInterrupt:
         logging.error("✗ Process interrupted by user")
@@ -130,6 +135,7 @@ Available Whisper models:
     except Exception as e:
         logging.error(f"✗ Error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
