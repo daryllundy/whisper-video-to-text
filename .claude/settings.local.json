@@ -8,7 +8,12 @@
       "Bash(git commit:*)",
       "Bash(ruff check --fix .)",
       "Bash(ruff check .)",
-      "Bash(agg:*)"
+      "Bash(agg:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose build:*)"
     ],
     "deny": []
   }
