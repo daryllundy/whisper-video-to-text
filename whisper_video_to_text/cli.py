@@ -105,11 +105,10 @@ Available Whisper models:
         if args.output:
             base = Path(args.output).with_suffix("")
         else:
-            # Save in ~/research directory with timestamped name
-            research_dir = Path.home() / "research"
-            research_dir.mkdir(exist_ok=True)
+            # Save in the same directory as the video file with timestamped name
+            output_dir = video_path.parent
             timestamp = int(time.time())  # Unix epoch seconds
-            base = research_dir / f"transcript-{timestamp}"
+            base = output_dir / f"{video_path.stem}-transcript-{timestamp}"
 
         formats = args.format if args.format else ["txt"]
         for fmt in set(formats):

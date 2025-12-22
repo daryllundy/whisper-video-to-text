@@ -212,19 +212,20 @@ Then use `HAS_FFMPEG_PYTHON` flag instead of repeated try/except.
 
 ## Quick Wins (≤1 hour)
 
-- [ ] Delete `styles.css` (dead code)
-- [ ] Rename `background_stub` → `run_transcription_task`
-- [ ] Add comment to `jobs = {}` about single-worker limitation
-- [ ] Fix `--format` default to `None` instead of `["txt"]`
-- [ ] Use `logging.exception()` instead of `logging.error()` in exception handlers
-- [ ] Extract shared `_format_time()` helper for SRT/VTT
+- [x] Delete `styles.css` (dead code)
+- [x] Rename `background_stub` → `run_transcription_task`
+- [x] Add comment to `jobs = {}` about single-worker limitation
+- [x] Fix `--format` default to `None` instead of `["txt"]`
+- [x] Use `logging.exception()` instead of `logging.error()` in exception handlers
+- [x] Extract shared `_format_time()` helper for SRT/VTT
 
 ---
 
 ## Deeper Refactors (half-day+)
 
-- [ ] Refactor `background_stub` to be fully synchronous or properly async (threading/asyncio cleanup)
-- [ ] Remove or implement `formats`/`timestamps` params in web API
-- [ ] Change default output directory from `~/research` to current directory (requires updating tests/docs)
-- [ ] Add proper optional dependency handling for `ffmpeg-python` with user-facing warning
-- [ ] Add type hints to web module functions (currently missing)
+- [x] Refactor `background_stub` to be fully synchronous or properly async (threading/asyncio cleanup)
+- [x] Remove or implement `formats`/`timestamps` params in web API
+- [x] Change default output directory from `~/research` to current directory (requires updating tests/docs)
+- [x] Add proper optional dependency handling for `ffmpeg-python` with user-facing warning
+- [x] Add type hints to web module functions (currently missing)
+

@@ -14,7 +14,8 @@ app.mount("/static", StaticFiles(directory="whisper_video_to_text/web/static"), 
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request) -> HTMLResponse:
+    """Render the main web interface."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 
