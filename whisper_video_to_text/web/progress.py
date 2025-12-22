@@ -1,8 +1,9 @@
 import asyncio
 import uuid
 
-# In-memory job state and progress tracking
-jobs = {}
+# In-memory job state. NOTE: Only works with single-worker deployment.
+# For multi-worker, migrate to Redis or database-backed storage.
+jobs: dict[str, "JobState"] = {}
 
 
 class JobState:

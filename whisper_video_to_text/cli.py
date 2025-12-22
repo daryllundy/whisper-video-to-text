@@ -68,8 +68,8 @@ Available Whisper models:
         "--format",
         action="append",
         choices=["txt", "srt", "vtt"],
-        default=["txt"],
-        help="Output format(s): txt, srt, vtt. Can be specified multiple times.",
+        default=None,
+        help="Output format(s): txt, srt, vtt. Can be specified multiple times. (default: txt)",
     )
 
     args = parser.parse_args()
@@ -111,8 +111,8 @@ Available Whisper models:
             timestamp = int(time.time())  # Unix epoch seconds
             base = research_dir / f"transcript-{timestamp}"
 
-        # Save in all requested formats
-        for fmt in set(args.format):
+        formats = args.format if args.format else ["txt"]
+        for fmt in set(formats):
             if fmt == "txt":
                 save_transcription(
                     transcription, str(base.with_suffix(".txt")), include_timestamps=args.timestamps
@@ -133,7 +133,7 @@ Available Whisper models:
         logging.error("✗ Process interrupted by user")
         sys.exit(1)
     except Exception as e:
-        logging.error(f"✗ Error: {e}")
+        logging.exception(f"✗ Error: {e}")
         sys.exit(1)
 
 

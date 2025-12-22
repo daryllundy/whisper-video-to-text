@@ -37,7 +37,7 @@ async def events(job_id: str):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-def background_stub(
+def run_transcription_task(
     job_id,
     file=None,
     url=None,
@@ -105,7 +105,7 @@ async def transcribe_api(
 
     # Start background task with user input
     background_tasks.add_task(
-        background_stub,
+        run_transcription_task,
         job_id,
         file=file,
         url=url,

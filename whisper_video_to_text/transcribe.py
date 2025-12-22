@@ -119,17 +119,18 @@ def save_vtt(transcription: dict[str, Any], output_file: str) -> None:
     logging.info(f"✓ VTT saved to: {output_path}")
 
 
-def _format_srt_time(seconds: float) -> str:
+def _format_time(seconds: float, ms_sep: str = ",") -> str:
+    """Format seconds to timestamp string with configurable millisecond separator."""
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = int(seconds % 60)
     ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02}:{m:02}:{s:02},{ms:03}"
+    return f"{h:02}:{m:02}:{s:02}{ms_sep}{ms:03}"
+
+
+def _format_srt_time(seconds: float) -> str:
+    return _format_time(seconds, ",")
 
 
 def _format_vtt_time(seconds: float) -> str:
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02}:{m:02}:{s:02}.{ms:03}"
+    return _format_time(seconds, ".")
