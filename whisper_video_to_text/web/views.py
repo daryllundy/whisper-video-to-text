@@ -30,11 +30,11 @@ router = APIRouter()
 
 
 @router.get("/events/{job_id}")
-async def events(job_id: str) -> StreamingResponse | JSONResponse:
+async def events(job_id: str) -> StreamingResponse:
     """Stream SSE progress events for a job."""
     job = get_job(job_id)
     if not job:
-        return JSONResponse({"error": "Job not found"}, status_code=404)
+        return JSONResponse({"error": "Job not found"}, status_code=404)  # type: ignore[return-value]
 
     async def event_generator():
         async for update in progress_stream(job_id):

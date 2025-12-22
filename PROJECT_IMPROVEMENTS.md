@@ -212,12 +212,12 @@ Then use `HAS_FFMPEG_PYTHON` flag instead of repeated try/except.
 
 ## Quick Wins (≤1 hour)
 
-- [ ] Delete `styles.css` (dead code)
-- [ ] Rename `background_stub` → `run_transcription_task`
-- [ ] Add comment to `jobs = {}` about single-worker limitation
-- [ ] Fix `--format` default to `None` instead of `["txt"]`
-- [ ] Use `logging.exception()` instead of `logging.error()` in exception handlers
-- [ ] Extract shared `_format_time()` helper for SRT/VTT
+- [x] Delete `styles.css` (dead code)
+- [x] Rename `background_stub` → `run_transcription_task`
+- [x] Add comment to `jobs = {}` about single-worker limitation
+- [x] Fix `--format` default to `None` instead of `["txt"]`
+- [x] Use `logging.exception()` instead of `logging.error()` in exception handlers
+- [x] Extract shared `_format_time()` helper for SRT/VTT
 
 ---
 
