@@ -4,6 +4,16 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+# Optional dependency: ffmpeg-python for progress bar support
+try:
+    import ffmpeg
+
+    HAS_FFMPEG_PYTHON = True
+except ImportError:
+    ffmpeg = None  # type: ignore[assignment]
+    HAS_FFMPEG_PYTHON = False
+    logging.debug("ffmpeg-python not installed; video duration detection disabled")
+
 
 def convert_mp4_to_mp3(input_file: str, output_file: str = None, verbose: bool = False) -> Path:
     """
@@ -28,13 +38,13 @@ def convert_mp4_to_mp3(input_file: str, output_file: str = None, verbose: bool =
         output_path = Path(output_file)
 
     # Get duration of input file (in seconds) for progress bar
-    try:
-        import ffmpeg
-
-        probe = ffmpeg.probe(str(input_path))
-        duration = float(probe["format"]["duration"])
-    except Exception:
-        duration = None
+    duration = None
+    if HAS_FFMPEG_PYTHON:
+        try:
+            probe = ffmpeg.probe(str(input_path))
+            duration = float(probe["format"]["duration"])
+        except Exception:
+            logging.debug("Could not probe video duration; progress bar will be disabled")
 
     cmd = [
         "ffmpeg",

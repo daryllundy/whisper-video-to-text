@@ -223,8 +223,9 @@ Then use `HAS_FFMPEG_PYTHON` flag instead of repeated try/except.
 
 ## Deeper Refactors (half-day+)
 
-- [ ] Refactor `background_stub` to be fully synchronous or properly async (threading/asyncio cleanup)
-- [ ] Remove or implement `formats`/`timestamps` params in web API
-- [ ] Change default output directory from `~/research` to current directory (requires updating tests/docs)
-- [ ] Add proper optional dependency handling for `ffmpeg-python` with user-facing warning
-- [ ] Add type hints to web module functions (currently missing)
+- [x] Refactor `background_stub` to be fully synchronous or properly async (threading/asyncio cleanup)
+- [x] Remove or implement `formats`/`timestamps` params in web API
+- [x] Change default output directory from `~/research` to current directory (requires updating tests/docs)
+- [x] Add proper optional dependency handling for `ffmpeg-python` with user-facing warning
+- [x] Add type hints to web module functions (currently missing)
+
