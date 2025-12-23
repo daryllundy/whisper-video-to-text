@@ -1,6 +1,6 @@
 # Dockerfile for Whisper Video to Text
 
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Install system dependencies with error handling
 RUN set -e && \
@@ -39,6 +39,8 @@ RUN set -e && \
 RUN set -e && \
     python -c "import whisper_video_to_text; print('Package imported successfully')" && \
     useradd --create-home --shell /bin/bash appuser && \
+    # Create necessary directories for volumes with correct permissions
+    mkdir -p /app/uploads /app/transcripts && \
     chown -R appuser:appuser /app && \
     echo "✓ Application setup completed"
 
