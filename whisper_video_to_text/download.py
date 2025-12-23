@@ -22,7 +22,11 @@ def download_video(url: str, output_dir: str = ".") -> str:
     cmd = [
         "yt-dlp",
         "-f",
-        "best[ext=mp4]/best",
+        "bestvideo*+bestaudio/best",
+        "--merge-output-format",
+        "mp4",
+        "--remote-components",
+        "ejs:github",
         "-o",
         os.path.join(output_dir, "%(title)s.%(ext)s"),
         "--no-playlist",
@@ -36,13 +40,29 @@ def download_video(url: str, output_dir: str = ".") -> str:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             pbar.update(1)
         # Extract filename from yt-dlp output
+        # First check for merged output
+        for line in result.stdout.split("\n"):
+            if "Merging formats into" in line:
+                try:
+                    # Format: [Merger] Merging formats into "filename.mp4"
+                    filename = line.split('"')[1]
+                    if os.path.exists(filename):
+                        return filename
+                except IndexError:
+                    pass
+
+        # Then check for direct downloads
         for line in result.stdout.split("\n"):
             if "Destination:" in line or "has already been downloaded" in line:
                 if "Destination:" in line:
                     filename = line.split("Destination:")[1].strip()
                 else:
                     filename = line.split("]")[1].strip().split(" has")[0]
-                return filename
+                
+                # Verified: Intermediate files (like .f401.mp4) are deleted by yt-dlp after merge.
+                # So we only return if the file actually exists.
+                if os.path.exists(filename):
+                    return filename
 
         # Fallback: look for the most recent .mp4 file
         mp4_files = list(Path(output_dir).glob("*.mp4"))
@@ -52,4 +72,8 @@ def download_video(url: str, output_dir: str = ".") -> str:
         raise ValueError("Could not determine downloaded filename")
     except subprocess.CalledProcessError as e:
         logging.error(f"✗ Error downloading video: {e}")
+        if e.stderr:
+            logging.error(f"Suggest looking at stderr: {e.stderr}")
+        if e.stdout:
+            logging.error(f"Stdout: {e.stdout}")
         raise
