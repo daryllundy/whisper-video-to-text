@@ -12,6 +12,12 @@
 
 ---
 
+## 🎥 Demo
+
+Check out the CLI in action: [demo.cast](demo.cast) (view with `asciinema play demo.cast`)
+
+---
+
 ## 📖 About The Project
 
 Whisper Video ► Text is a powerful command-line tool that bridges the gap between video content and text transcription. Whether you need to transcribe YouTube videos for research, create subtitles for accessibility, or extract text from local video files for documentation, this tool provides state-of-the-art accuracy using OpenAI's Whisper model.
@@ -179,6 +185,12 @@ When `--output` is specified, files are saved to that location with the specifie
 ## 🌐 Web Interface
 
 A modern web UI is included for browser-based transcription.
+
+![Web Interface Main Page](docs/images/web-ui-main.png)
+*Simple and clean interface for uploading videos or pasting URLs*
+
+![Web Interface Result](docs/images/web-ui-result.png)
+*Real-time processing updates and instant transcription results*
 
 ### Install Web Dependencies
 
