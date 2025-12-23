@@ -143,7 +143,7 @@ def run_transcription_task(
                 vtt_lines.append("")
             output["formats"]["vtt"] = "\n".join(vtt_lines)
 
-        update_progress_sync(job_id, 100, "complete", "Done")
+
         set_result_sync(job_id, output)
         
     except Exception as e:
@@ -197,7 +197,7 @@ async def transcribe_api(
         file=file,
         url=url,
         model=model if isinstance(model, str) else "base",
-        language=language if isinstance(language, str) else None,
+        language=language if (isinstance(language, str) and len(language) > 0) else None,
         formats=formats,
         timestamps=timestamps,
     )
