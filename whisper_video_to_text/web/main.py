@@ -1,5 +1,7 @@
 import os
 
+from pathlib import Path
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -8,9 +10,12 @@ from fastapi.templating import Jinja2Templates
 
 from whisper_video_to_text.web.views import router as web_router
 
+# Get the directory where this file is located
+BASE_DIR = Path(__file__).resolve().parent
+
 app = FastAPI(title="Whisper Video to Text Web")
-templates = Jinja2Templates(directory="whisper_video_to_text/web/templates")
-app.mount("/static", StaticFiles(directory="whisper_video_to_text/web/static"), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)

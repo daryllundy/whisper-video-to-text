@@ -12,6 +12,7 @@ services:
       - transcripts:/app/transcripts
       - uploads:/app/uploads
       - whisper-cache:/home/appuser/.cache/whisper
+      - yt-dlp-cache:/home/appuser/.cache/yt-dlp
     environment:
       - WHISPER_MODEL=${WHISPER_MODEL:-base}
       - PORT=${PORT:-8000}
@@ -32,6 +33,8 @@ volumes:
   uploads:
     driver: local
   whisper-cache:
+    driver: local
+  yt-dlp-cache:
     driver: local
 
 networks:

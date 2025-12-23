@@ -31,6 +31,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 COPY . /app
 
 # Install Python dependencies with web extras by default
+# This will install the updated yt-dlp version from pyproject.toml
 RUN set -e && \
     uv pip install --system --no-cache .[web] && \
     echo "✓ Python dependencies installed successfully"
