@@ -45,6 +45,11 @@ whisper_video_to_text = ["web/templates/*.html", "web/static/*.js", "web/static/
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+]
+
 [tool.black]
 line-length = 100
 target-version = ["py39"]

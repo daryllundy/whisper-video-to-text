@@ -5,8 +5,8 @@ import shutil
 import tempfile
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Request, UploadFile
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from whisper_video_to_text.convert import convert_mp4_to_mp3
 from whisper_video_to_text.download import download_video
@@ -25,6 +25,7 @@ from whisper_video_to_text.web.progress import (
 
 # Ensure uploads directory exists at module initialization
 os.makedirs("uploads", exist_ok=True)
+os.makedirs("transcripts", exist_ok=True)
 
 router = APIRouter()
 
@@ -41,6 +42,23 @@ async def events(job_id: str) -> StreamingResponse:
             yield f"data: {json.dumps(update)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/download/{job_id}/{extension}")
+async def download_file(job_id: str, extension: str) -> FileResponse:
+    """Download a transcript file by job ID and extension."""
+    if extension not in ["txt", "srt", "vtt"]:
+        raise HTTPException(status_code=400, detail="Invalid extension")
+    
+    file_path = os.path.join("transcripts", f"{job_id}.{extension}")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    return FileResponse(
+        file_path, 
+        media_type="text/plain", 
+        filename=f"transcript-{job_id}.{extension}"
+    )
 
 
 def run_transcription_task(
@@ -142,6 +160,12 @@ def run_transcription_task(
                 vtt_lines.append(text)
                 vtt_lines.append("")
             output["formats"]["vtt"] = "\n".join(vtt_lines)
+
+        # Save files to transcripts directory
+        for fmt, content in output["formats"].items():
+            file_path = os.path.join("transcripts", f"{job_id}.{fmt}")
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
 
 
         set_result_sync(job_id, output)

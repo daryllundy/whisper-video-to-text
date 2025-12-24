@@ -190,6 +190,10 @@
         <div id="status" style="font-size: 1.2rem; font-weight: 500; margin-bottom: 0.5rem;">WAITING</div>
         <div id="message" class="meta" style="margin-bottom: 1rem;">Ready for input...</div>
 
+        <div id="downloads" style="display: none; gap: 0.5rem; margin-bottom: 1rem;">
+          <!-- Download buttons will be injected here -->
+        </div>
+
         <label>PROGRESS</label>
         <div class="progress">
           <div id="bar" class="bar"></div>
@@ -212,6 +216,72 @@
 
   </main>
 
+  <script>
+    function listen(jobId) {
+      const events = new EventSource(`/events/${jobId}`);
+      const bar = document.getElementById('bar');
+      const status = document.getElementById('status');
+      const message = document.getElementById('message');
+      const output = document.getElementById('output');
+      const downloadContainer = document.getElementById('downloads');
+      const btn = document.querySelector('button[type="submit"]');
+
+      events.onmessage = (ev) => {
+        const data = JSON.parse(ev.data);
+        bar.style.width = (data.progress || 0) + '%';
+
+        if (data.status) {
+          status.textContent = data.status.toUpperCase();
+          if (data.status === 'processing') status.style.color = 'var(--accent-yellow)';
+          if (data.status === 'complete') status.style.color = 'var(--text-primary)';
+          if (data.status === 'error') status.style.color = 'var(--accent-alert)';
+        }
+
+        message.textContent = data.message || '';
+
+        if (data.result && data.result.text) {
+          output.textContent = data.result.text;
+        }
+
+        if (data.status === 'complete') {
+          events.close();
+          btn.innerText = "START TRANSCRIPTION";
+          btn.disabled = false;
+
+          // Show download buttons
+          if (data.result && data.result.formats) {
+            downloadContainer.innerHTML = '';
+            downloadContainer.style.display = 'flex';
+            
+            Object.keys(data.result.formats).forEach(ext => {
+              const link = document.createElement('a');
+              link.href = `/download/${jobId}/${ext}`;
+              link.className = 'btn';
+              link.style.padding = '0.5rem 1rem';
+              link.style.fontSize = '0.8rem';
+              link.style.textDecoration = 'none';
+              link.style.border = '1px solid var(--border-light)';
+              link.textContent = `DOWNLOAD .${ext.toUpperCase()}`;
+              link.target = '_blank';
+              downloadContainer.appendChild(link);
+            });
+          }
+        } 
+        
+        if (data.status === 'error') {
+          events.close();
+          btn.innerText = "START TRANSCRIPTION";
+          btn.disabled = false;
+        }
+      };
+
+      events.onerror = () => {
+        events.close();
+        btn.innerText = "START TRANSCRIPTION";
+        btn.disabled = false;
+      }
+    }
+  </script>
 </body>
 
 </html>
