@@ -3,6 +3,8 @@ import logging
 import os
 import shutil
 import tempfile
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
@@ -59,6 +61,48 @@ async def download_file(job_id: str, extension: str) -> FileResponse:
         media_type="text/plain", 
         filename=f"transcript-{job_id}.{extension}"
     )
+
+
+@router.get("/api/history")
+async def get_history() -> list[dict[str, Any]]:
+    """List all available transcripts."""
+    transcripts_dir = Path("transcripts")
+    if not transcripts_dir.exists():
+        return []
+
+    # Group files by job_id
+    jobs: dict[str, dict[str, Any]] = {}
+    
+    for file_path in transcripts_dir.iterdir():
+        if file_path.is_file() and not file_path.name.startswith("."):
+            # Expecting filename format: {job_id}.{extension}
+            parts = file_path.name.split(".")
+            if len(parts) < 2:
+                continue
+                
+            extension = parts[-1]
+            job_id = ".".join(parts[:-1])
+            
+            if extension not in ["txt", "srt", "vtt"]:
+                continue
+
+            if job_id not in jobs:
+                # Use modification time of the first file found for this job
+                mtime = file_path.stat().st_mtime
+                jobs[job_id] = {
+                    "job_id": job_id,
+                    "date": datetime.fromtimestamp(mtime).isoformat(),
+                    "formats": []
+                }
+            
+            jobs[job_id]["formats"].append(extension)
+
+    # Convert to list and sort by date descending
+    history = list(jobs.values())
+    history.sort(key=lambda x: x["date"], reverse=True)
+    
+    return history
+
 
 
 def run_transcription_task(
