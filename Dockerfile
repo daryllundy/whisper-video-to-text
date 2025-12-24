@@ -14,14 +14,22 @@ RUN set -e && \
     ffmpeg -version && \
     echo "✓ System dependencies installed successfully"
 
-# Install uv with error handling
-RUN set -e && \
-    pip install --no-cache-dir uv && \
-    uv --version && \
-    echo "✓ uv installed successfully"
+# Install uv for fast package management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 # Set workdir
 WORKDIR /app
+
+# Copy dependency files first to leverage Docker cache
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies from lockfile
+# We export to requirements.txt first to ensure exact versions from lockfile are used
+RUN set -e && \
+    uv export --frozen --format requirements-txt --output-file requirements.txt --extra web && \
+    uv pip install --system --no-cache -r requirements.txt && \
+    rm requirements.txt && \
+    echo "✓ Python dependencies installed successfully"
 
 # Copy entrypoint script first and make it executable
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -30,11 +38,10 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Copy application code
 COPY . /app
 
-# Install Python dependencies with web extras by default
-# This will install the updated yt-dlp version from pyproject.toml
+# Install the application package itself (no dependencies as they are already installed)
 RUN set -e && \
-    uv pip install --system --no-cache .[web] && \
-    echo "✓ Python dependencies installed successfully"
+    uv pip install --system --no-deps . && \
+    echo "✓ Application installed successfully"
 
 # Verify installation and create non-root user for security
 RUN set -e && \
@@ -51,7 +58,7 @@ USER appuser
 # Expose web server port
 EXPOSE 8000
 
-# Add health check
+# Add health check that verifies the package is importable
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import whisper_video_to_text" || exit 1
 

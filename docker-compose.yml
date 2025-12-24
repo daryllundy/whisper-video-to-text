@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: whisper-video-to-text:latest
     container_name: whisper-web
     ports:
       - "${PORT:-8000}:8000"
