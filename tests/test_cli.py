@@ -1,9 +1,6 @@
 """Tests for CLI argument parsing and behavior."""
 
 import argparse
-from unittest import mock
-
-import pytest
 
 
 def test_format_argument_default_is_none():

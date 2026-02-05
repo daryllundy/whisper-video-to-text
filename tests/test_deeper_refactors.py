@@ -8,13 +8,8 @@ These tests verify that all 5 deeper refactor tasks have been implemented correc
 5. Type hints in web module
 """
 
-import asyncio
 import inspect
-from pathlib import Path
 from typing import get_type_hints
-from unittest import mock
-
-import pytest
 
 
 class TestSyncAsyncCleanup:
@@ -24,16 +19,23 @@ class TestSyncAsyncCleanup:
         """Verify the function doesn't use asyncio.run internally."""
         # Read the source file directly to avoid FastAPI import issues
         import pathlib
-        views_path = pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
+        views_path = (
+            pathlib.Path(__file__).parent.parent
+            / "whisper_video_to_text"
+            / "web"
+            / "views.py"
+        )
         source = views_path.read_text()
-        
+
         # The function should not use asyncio.run internally
         # Find the run_transcription_task function and check it doesn't contain asyncio.run
         assert "def run_transcription_task(" in source
         # asyncio.run should not appear after the function definition
         func_start = source.find("def run_transcription_task(")
         func_section = source[func_start:func_start + 3000]  # Get the function body
-        assert "asyncio.run" not in func_section, "asyncio.run should not be used inside run_transcription_task"
+        assert "asyncio.run" not in func_section, (
+            "asyncio.run should not be used inside run_transcription_task"
+        )
 
     def test_progress_sync_functions_exist(self):
         """Verify sync helper functions exist in progress module."""
@@ -47,9 +49,14 @@ class TestSyncAsyncCleanup:
     def test_views_uses_sync_progress_functions(self):
         """Verify views.py uses sync versions of progress updates."""
         import pathlib
-        views_path = pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
+        views_path = (
+            pathlib.Path(__file__).parent.parent
+            / "whisper_video_to_text"
+            / "web"
+            / "views.py"
+        )
         source = views_path.read_text()
-        
+
         assert "update_progress_sync" in source
         assert "set_result_sync" in source
         # Should not use async versions in the sync function
@@ -63,9 +70,14 @@ class TestFormatsTimestampsImplementation:
     def test_run_transcription_task_uses_formats_param(self):
         """Verify formats parameter is used in the function."""
         import pathlib
-        views_path = pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
+        views_path = (
+            pathlib.Path(__file__).parent.parent
+            / "whisper_video_to_text"
+            / "web"
+            / "views.py"
+        )
         source = views_path.read_text()
-        
+
         # Check that formats are processed
         assert '"srt" in formats' in source or "'srt' in formats" in source
         assert '"vtt" in formats' in source or "'vtt' in formats" in source
@@ -73,9 +85,14 @@ class TestFormatsTimestampsImplementation:
     def test_run_transcription_task_uses_timestamps_param(self):
         """Verify timestamps parameter is used in the function."""
         import pathlib
-        views_path = pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
+        views_path = (
+            pathlib.Path(__file__).parent.parent
+            / "whisper_video_to_text"
+            / "web"
+            / "views.py"
+        )
         source = views_path.read_text()
-        
+
         assert "timestamps" in source
         # Should check timestamps condition
         assert "if timestamps" in source
@@ -185,9 +202,14 @@ class TestWebModuleTypeHints:
     def test_views_has_type_hints_in_source(self):
         """Verify views.py has type hints (checking source to avoid FastAPI import issues)."""
         import pathlib
-        views_path = pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
+        views_path = (
+            pathlib.Path(__file__).parent.parent
+            / "whisper_video_to_text"
+            / "web"
+            / "views.py"
+        )
         source = views_path.read_text()
-        
+
         # Check that run_transcription_task has type hints
         assert "def run_transcription_task(" in source
         assert "job_id: str" in source
@@ -196,9 +218,14 @@ class TestWebModuleTypeHints:
     def test_main_has_type_hints_in_source(self):
         """Verify main.py has type hints (checking source to avoid FastAPI import issues)."""
         import pathlib
-        main_path = pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "main.py"
+        main_path = (
+            pathlib.Path(__file__).parent.parent
+            / "whisper_video_to_text"
+            / "web"
+            / "main.py"
+        )
         source = main_path.read_text()
-        
+
         # Check that index has type hints
         assert "async def index(request: Request) -> HTMLResponse:" in source
 
@@ -211,4 +238,3 @@ class TestWebModuleTypeHints:
         assert isinstance(job.progress, int)
         assert isinstance(job.status, str)
         assert isinstance(job.message, str)
-

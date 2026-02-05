@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import uuid
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 # In-memory job state. NOTE: Only works with single-worker deployment.
 # For multi-worker, migrate to Redis or database-backed storage.
-jobs: dict[str, "JobState"] = {}
+jobs: dict[str, JobState] = {}
 
 
 class JobState:
@@ -112,4 +114,3 @@ async def progress_stream(job_id: str) -> AsyncIterator[dict]:
         yield update
         if update.get("status") == "complete":
             break
-
