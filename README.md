@@ -2,6 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+[![GitLab Mirror](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)
 [![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml)
 
 Convert MP4 videos (local or YouTube) to accurate, timestamped text using OpenAI Whisper locally.
