@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import AsyncIterator
+from typing import Optional
 
 # In-memory job state. NOTE: Only works with single-worker deployment.
 # For multi-worker, migrate to Redis or database-backed storage.
@@ -14,7 +15,7 @@ class JobState:
         self.progress: int = 0
         self.status: str = "pending"
         self.message: str = ""
-        self.result: dict | None = None
+        self.result: Optional[dict] = None  # noqa: UP045
         self.queue: asyncio.Queue = asyncio.Queue()
 
 
@@ -25,7 +26,7 @@ def create_job() -> str:
     return job_id
 
 
-def get_job(job_id: str) -> JobState | None:
+def get_job(job_id: str) -> Optional[JobState]:  # noqa: UP045
     """Get a job by ID, or None if not found."""
     return jobs.get(job_id)
 
