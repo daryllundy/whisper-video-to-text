@@ -8,6 +8,9 @@ on:
     - cron: "0 0 * * *" # Daily sync as backup
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   mirror:
     runs-on: ubuntu-latest
@@ -489,8 +492,10 @@ jobs:
 
           # Push changes with comprehensive error handling
           echo "🚀 Pushing changes to repository..."
+          set +e
           PUSH_OUTPUT=$(git push origin HEAD 2>&1)
           PUSH_EXIT_CODE=$?
+          set -e
           
           if [ $PUSH_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: Failed to push changes to repository"
