@@ -23,12 +23,18 @@ WORKDIR /app
 # Copy dependency files first to leverage Docker cache
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies from lockfile
-# We export to requirements.txt first to ensure exact versions from lockfile are used
+# Install runtime dependencies directly.
+# `uv export --frozen` currently fails on Linux x86_64 due a resolver conflict
+# between locked `triton==3.3.1` and `openai-whisper==20231117`.
 RUN set -e && \
-    uv export --frozen --format requirements-txt --output-file requirements.txt --extra web && \
-    uv pip install --system --no-cache -r requirements.txt && \
-    rm requirements.txt && \
+    uv pip install --system --no-cache \
+        "openai-whisper==20231117" \
+        "yt-dlp>=2025.01.01" \
+        "tqdm==4.66.4" \
+        "fastapi" \
+        "uvicorn[standard]" \
+        "python-multipart" \
+        "jinja2" && \
     echo "✓ Python dependencies installed successfully"
 
 # Copy entrypoint script first and make it executable
