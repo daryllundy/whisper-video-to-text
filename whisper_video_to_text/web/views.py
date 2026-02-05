@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -49,15 +51,13 @@ async def download_file(job_id: str, extension: str) -> FileResponse:
     """Download a transcript file by job ID and extension."""
     if extension not in ["txt", "srt", "vtt"]:
         raise HTTPException(status_code=400, detail="Invalid extension")
-    
+
     file_path = os.path.join("transcripts", f"{job_id}.{extension}")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-        
+
     return FileResponse(
-        file_path, 
-        media_type="text/plain", 
-        filename=f"transcript-{job_id}.{extension}"
+        file_path, media_type="text/plain", filename=f"transcript-{job_id}.{extension}"
     )
 
 
@@ -70,17 +70,17 @@ async def get_history() -> list[dict[str, Any]]:
 
     # Group files by job_id
     jobs: dict[str, dict[str, Any]] = {}
-    
+
     for file_path in transcripts_dir.iterdir():
         if file_path.is_file() and not file_path.name.startswith("."):
             # Expecting filename format: {job_id}.{extension}
             parts = file_path.name.split(".")
             if len(parts) < 2:
                 continue
-                
+
             extension = parts[-1]
             job_id = ".".join(parts[:-1])
-            
+
             if extension not in ["txt", "srt", "vtt"]:
                 continue
 
@@ -90,17 +90,16 @@ async def get_history() -> list[dict[str, Any]]:
                 jobs[job_id] = {
                     "job_id": job_id,
                     "date": datetime.fromtimestamp(mtime).isoformat(),
-                    "formats": []
+                    "formats": [],
                 }
-            
+
             jobs[job_id]["formats"].append(extension)
 
     # Convert to list and sort by date descending
     history = list(jobs.values())
     history.sort(key=lambda x: x["date"], reverse=True)
-    
-    return history
 
+    return history
 
 
 def run_transcription_task(
@@ -113,10 +112,10 @@ def run_transcription_task(
     timestamps: bool = False,
 ) -> None:
     """Run transcription task synchronously in a background thread.
-    
+
     This function is called by FastAPI's BackgroundTasks in a thread pool.
     It uses synchronous progress updates to communicate with the async SSE stream.
-    
+
     Args:
         job_id: Unique job identifier
         file: Uploaded file object
@@ -128,11 +127,11 @@ def run_transcription_task(
     """
     if formats is None:
         formats = ["txt"]
-    
+
     tempdir = tempfile.mkdtemp(prefix="wvttmp_")
     try:
         mp4_path: str | None = None
-        
+
         # Download or save uploaded file
         if url:
             update_progress_sync(job_id, 10, "downloading", "Downloading video...")
@@ -152,19 +151,17 @@ def run_transcription_task(
         mp3_path = convert_mp4_to_mp3(mp4_path, verbose=False)
 
         update_progress_sync(job_id, 60, "transcribing", "Transcribing audio...")
-        result = transcribe_audio(
-            str(mp3_path), model_name=model, language=language, verbose=False
-        )
+        result = transcribe_audio(str(mp3_path), model_name=model, language=language, verbose=False)
 
         update_progress_sync(job_id, 90, "saving", "Preparing output...")
-        
+
         # Build response with requested formats
         output: dict[str, Any] = {
             "text": result.get("text", ""),
             "language": result.get("language"),
             "formats": {},
         }
-        
+
         # Generate outputs based on requested formats
         if "txt" in formats:
             if timestamps and result.get("segments"):
@@ -177,7 +174,7 @@ def run_transcription_task(
                 output["formats"]["txt"] = "\n".join(lines)
             else:
                 output["formats"]["txt"] = result.get("text", "")
-        
+
         if "srt" in formats:
             # Generate SRT content
             srt_lines = []
@@ -190,7 +187,7 @@ def run_transcription_task(
                 srt_lines.append(text)
                 srt_lines.append("")
             output["formats"]["srt"] = "\n".join(srt_lines)
-        
+
         if "vtt" in formats:
             # Generate VTT content
             vtt_lines = ["WEBVTT", ""]
@@ -209,9 +206,8 @@ def run_transcription_task(
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-
         set_result_sync(job_id, output)
-        
+
     except Exception as e:
         logging.exception(f"Transcription error for job {job_id}: {e}")
         update_progress_sync(job_id, 100, "error", f"Error: {e}")
@@ -268,4 +264,3 @@ async def transcribe_api(
         timestamps=timestamps,
     )
     return JSONResponse({"job_id": job_id})
-

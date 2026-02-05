@@ -33,7 +33,7 @@ def test_history_endpoint():
     # Set mtime to past
     past_time = time.time() - 7200
     os.utime(transcripts_dir / f"{job_id_1}.txt", (past_time, past_time))
-    
+
     # Job 2: Now
     (transcripts_dir / f"{job_id_2}.vtt").touch()
 
@@ -72,6 +72,7 @@ def test_history_endpoint():
         p = transcripts_dir / f"{job_id_2}.vtt"
         if p.exists():
             p.unlink()
+
 
 if __name__ == "__main__":
     test_history_endpoint()

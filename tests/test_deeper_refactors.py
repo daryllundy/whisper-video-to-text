@@ -19,11 +19,9 @@ class TestSyncAsyncCleanup:
         """Verify the function doesn't use asyncio.run internally."""
         # Read the source file directly to avoid FastAPI import issues
         import pathlib
+
         views_path = (
-            pathlib.Path(__file__).parent.parent
-            / "whisper_video_to_text"
-            / "web"
-            / "views.py"
+            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
         )
         source = views_path.read_text()
 
@@ -32,10 +30,10 @@ class TestSyncAsyncCleanup:
         assert "def run_transcription_task(" in source
         # asyncio.run should not appear after the function definition
         func_start = source.find("def run_transcription_task(")
-        func_section = source[func_start:func_start + 3000]  # Get the function body
-        assert "asyncio.run" not in func_section, (
-            "asyncio.run should not be used inside run_transcription_task"
-        )
+        func_section = source[func_start : func_start + 3000]  # Get the function body
+        assert (
+            "asyncio.run" not in func_section
+        ), "asyncio.run should not be used inside run_transcription_task"
 
     def test_progress_sync_functions_exist(self):
         """Verify sync helper functions exist in progress module."""
@@ -49,11 +47,9 @@ class TestSyncAsyncCleanup:
     def test_views_uses_sync_progress_functions(self):
         """Verify views.py uses sync versions of progress updates."""
         import pathlib
+
         views_path = (
-            pathlib.Path(__file__).parent.parent
-            / "whisper_video_to_text"
-            / "web"
-            / "views.py"
+            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
         )
         source = views_path.read_text()
 
@@ -70,11 +66,9 @@ class TestFormatsTimestampsImplementation:
     def test_run_transcription_task_uses_formats_param(self):
         """Verify formats parameter is used in the function."""
         import pathlib
+
         views_path = (
-            pathlib.Path(__file__).parent.parent
-            / "whisper_video_to_text"
-            / "web"
-            / "views.py"
+            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
         )
         source = views_path.read_text()
 
@@ -85,11 +79,9 @@ class TestFormatsTimestampsImplementation:
     def test_run_transcription_task_uses_timestamps_param(self):
         """Verify timestamps parameter is used in the function."""
         import pathlib
+
         views_path = (
-            pathlib.Path(__file__).parent.parent
-            / "whisper_video_to_text"
-            / "web"
-            / "views.py"
+            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
         )
         source = views_path.read_text()
 
@@ -100,7 +92,7 @@ class TestFormatsTimestampsImplementation:
     def test_format_time_functions_exist_in_transcribe(self):
         """Verify SRT/VTT time formatting functions exist in transcribe module."""
         from whisper_video_to_text import transcribe
-        
+
         # The shared _format_time helper should exist
         assert hasattr(transcribe, "_format_time")
         assert hasattr(transcribe, "_format_srt_time")
@@ -202,11 +194,9 @@ class TestWebModuleTypeHints:
     def test_views_has_type_hints_in_source(self):
         """Verify views.py has type hints (checking source to avoid FastAPI import issues)."""
         import pathlib
+
         views_path = (
-            pathlib.Path(__file__).parent.parent
-            / "whisper_video_to_text"
-            / "web"
-            / "views.py"
+            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
         )
         source = views_path.read_text()
 
@@ -218,11 +208,9 @@ class TestWebModuleTypeHints:
     def test_main_has_type_hints_in_source(self):
         """Verify main.py has type hints (checking source to avoid FastAPI import issues)."""
         import pathlib
+
         main_path = (
-            pathlib.Path(__file__).parent.parent
-            / "whisper_video_to_text"
-            / "web"
-            / "main.py"
+            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "main.py"
         )
         source = main_path.read_text()
 

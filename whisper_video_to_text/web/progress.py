@@ -30,9 +30,7 @@ def get_job(job_id: str) -> JobState | None:
     return jobs.get(job_id)
 
 
-async def update_progress(
-    job_id: str, progress: int, status: str, message: str = ""
-) -> None:
+async def update_progress(job_id: str, progress: int, status: str, message: str = "") -> None:
     """Update job progress (async version for use from async context)."""
     job = get_job(job_id)
     if job:
@@ -42,11 +40,9 @@ async def update_progress(
         await job.queue.put({"progress": progress, "status": status, "message": message})
 
 
-def update_progress_sync(
-    job_id: str, progress: int, status: str, message: str = ""
-) -> None:
+def update_progress_sync(job_id: str, progress: int, status: str, message: str = "") -> None:
     """Update job progress (sync version for use from background threads).
-    
+
     This creates a new event loop to safely put updates on the async queue
     from a synchronous thread context.
     """
@@ -64,9 +60,7 @@ def update_progress_sync(
             )
         except RuntimeError:
             # No running loop - use put_nowait directly (safe if queue is empty)
-            job.queue.put_nowait(
-                {"progress": progress, "status": status, "message": message}
-            )
+            job.queue.put_nowait({"progress": progress, "status": status, "message": message})
 
 
 async def set_result(job_id: str, result: dict) -> None:
