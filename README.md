@@ -45,6 +45,10 @@ whisper_video_to_text audio.wav
 whisper_video_to_text "https://youtube.com/watch?v=..." --download
 ```
 
+The downloader prefers a single-file MP4 stream before trying separate video/audio
+streams. This improves compatibility with current YouTube responses where some
+adaptive formats may be listed by `yt-dlp` but fail with HTTP 403 during download.
+
 ## 🛠 CLI Options
 
 | Flag | Description | Example |
