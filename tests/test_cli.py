@@ -61,9 +61,7 @@ def test_cli_uses_whisper_wav_converter(monkeypatch, tmp_path):
         return audio_file
 
     monkeypatch.setattr(sys, "argv", ["whisper_video_to_text", str(input_file)])
-    monkeypatch.setattr(
-        cli, "convert_media_to_whisper_audio", fake_convert_media_to_whisper_audio
-    )
+    monkeypatch.setattr(cli, "convert_media_to_whisper_audio", fake_convert_media_to_whisper_audio)
     monkeypatch.setattr(
         cli,
         "transcribe_audio",
