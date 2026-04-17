@@ -5,7 +5,7 @@
 [![GitLab Mirror](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)
 [![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml)
 
-Convert MP4 videos (local or YouTube) to accurate, timestamped text using OpenAI Whisper locally.
+Convert local media files or YouTube videos to accurate, timestamped text using OpenAI Whisper locally.
 
 ## 🎥 Demo
 
@@ -34,9 +34,10 @@ pip install .
 
 ### Usage
 
-**Transcribe a local video**
+**Transcribe a local media file**
 ```bash
 whisper_video_to_text video.mp4
+whisper_video_to_text audio.wav
 ```
 
 **Download & Transcribe YouTube**
@@ -54,6 +55,8 @@ whisper_video_to_text "https://youtube.com/watch?v=..." --download
 | `--timestamps` | Include timestamps in text output | `--timestamps` |
 | `--output` | Custom output path | `--output transcript.txt` |
 | `--download` | Download video from URL | `URL --download` |
+
+Supported local media formats: `.mp3`, `.wav`, `.aif`, `.aiff`, `.mp4`, `.mov`.
 
 ## 🌐 Web Interface
 
@@ -75,7 +78,7 @@ Visit http://localhost:8000.
 **Run CLI**
 ```bash
 docker build -t whisper-v2t .
-docker run --rm -v "$PWD:/workspace" whisper-v2t /workspace/video.mp4
+docker run --rm -v "$PWD:/workspace" whisper-v2t /workspace/audio.wav
 ```
 
 **Run Web UI**
