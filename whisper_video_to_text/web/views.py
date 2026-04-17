@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from whisper_video_to_text.convert import convert_mp4_to_mp3
+from whisper_video_to_text.convert import convert_media_to_whisper_audio
 from whisper_video_to_text.download import download_video
 from whisper_video_to_text.transcribe import (
     transcribe_audio,
@@ -130,28 +130,34 @@ def run_transcription_task(
 
     tempdir = tempfile.mkdtemp(prefix="wvttmp_")
     try:
-        mp4_path: str | None = None
+        media_path: str | None = None
 
         # Download or save uploaded file
         if url:
             update_progress_sync(job_id, 10, "downloading", "Downloading video...")
-            mp4_path = download_video(url, output_dir=tempdir)
+            media_path = download_video(url, output_dir=tempdir)
         elif file:
             update_progress_sync(job_id, 10, "uploading", "Saving uploaded file...")
             # Save uploaded file to uploads directory
-            dest = os.path.join("uploads", file.filename or "upload.mp4")
+            safe_filename = Path(file.filename or "upload").name
+            dest = os.path.join("uploads", safe_filename)
             with open(dest, "wb") as f_out:
                 shutil.copyfileobj(file.file, f_out)
-            mp4_path = dest
+            media_path = dest
         else:
             update_progress_sync(job_id, 100, "error", "No file or URL provided")
             return
 
         update_progress_sync(job_id, 30, "converting", "Extracting audio...")
-        mp3_path = convert_mp4_to_mp3(mp4_path, verbose=False)
+        audio_output = Path(tempdir) / f"{Path(media_path).stem}-whisper.wav"
+        audio_path = convert_media_to_whisper_audio(
+            media_path, output_file=str(audio_output), verbose=False
+        )
 
         update_progress_sync(job_id, 60, "transcribing", "Transcribing audio...")
-        result = transcribe_audio(str(mp3_path), model_name=model, language=language, verbose=False)
+        result = transcribe_audio(
+            str(audio_path), model_name=model, language=language, verbose=False
+        )
 
         update_progress_sync(job_id, 90, "saving", "Preparing output...")
 

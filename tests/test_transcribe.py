@@ -11,7 +11,7 @@ def test_transcribe_audio_success(tmp_path):
 
     mock_model = mock.Mock()
     mock_model.transcribe.return_value = {"text": "hello", "segments": [], "language": "en"}
-    with mock.patch("whisper.load_model", return_value=mock_model):
+    with mock.patch("whisper_video_to_text.transcribe.whisper.load_model", return_value=mock_model):
         result = transcribe.transcribe_audio(str(audio_file), model_name="base")
         assert result["text"] == "hello"
         assert result["language"] == "en"

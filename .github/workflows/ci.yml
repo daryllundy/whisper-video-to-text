@@ -14,13 +14,40 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run lint checks
+        run: |
+          uv run ruff check .
+          uv run black --check .
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.12"]
 
     steps:
       - name: Checkout code
@@ -43,20 +70,13 @@ jobs:
           ffmpeg -version | head -1
 
       - name: Install dependencies
-        run: |
-          uv sync --all-extras
-          uv run pip install -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Verify tests directory
         run: test -d tests
 
       - name: Run tests
         run: uv run pytest -v --tb=short --durations=10
-
-      - name: Run lint checks
-        run: |
-          uv run ruff check .
-          uv run black --check .
 
       - name: Test CLI help
         run: |

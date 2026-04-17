@@ -4,7 +4,7 @@ import sys
 import time
 from pathlib import Path
 
-from whisper_video_to_text.convert import convert_mp4_to_mp3
+from whisper_video_to_text.convert import convert_media_to_whisper_audio
 from whisper_video_to_text.download import download_video
 from whisper_video_to_text.transcribe import (
     save_srt,
@@ -16,12 +16,13 @@ from whisper_video_to_text.transcribe import (
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert MP4 to MP3 and transcribe audio to text",
+        description="Convert media files to Whisper-ready audio and transcribe to text",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Basic usage with local file
   python -m whisper_video_to_text video.mp4
+  python -m whisper_video_to_text audio.wav
 
   # Download from YouTube and transcribe
   python -m whisper_video_to_text "https://youtube.com/watch?v=..." --download
@@ -32,18 +33,24 @@ Examples:
   # Include timestamps in output
   python -m whisper_video_to_text video.mp4 --timestamps
 
-  # Keep intermediate MP3 file
+  # Keep intermediate WAV file
   python -m whisper_video_to_text video.mp4 --keep-audio
 
   # Export to SRT and VTT
   python -m whisper_video_to_text video.mp4 --format srt --format vtt
+
+Supported local media formats:
+  mp3, wav, aif, aiff, mp4, mov
 
 Available Whisper models:
   tiny, base, small, medium, large
         """,
     )
 
-    parser.add_argument("input", help="MP4 file path or video URL (with --download)")
+    parser.add_argument(
+        "input",
+        help="Media file path (.mp3, .wav, .aif, .aiff, .mp4, .mov) or video URL (with --download)",
+    )
     parser.add_argument("-o", "--output", help="Output text file (default: input_name.txt)")
     parser.add_argument(
         "-m",
@@ -57,7 +64,7 @@ Available Whisper models:
         "-t", "--timestamps", action="store_true", help="Include timestamps in transcription"
     )
     parser.add_argument(
-        "-k", "--keep-audio", action="store_true", help="Keep intermediate MP3 file"
+        "-k", "--keep-audio", action="store_true", help="Keep intermediate WAV file"
     )
     parser.add_argument(
         "-d", "--download", action="store_true", help="Download video from URL first"
@@ -84,17 +91,15 @@ Available Whisper models:
     )
 
     try:
-        # Handle video download if needed
+        # Handle media download if needed
         if args.download:
-            video_file = download_video(args.input)
+            media_file = download_video(args.input)
         else:
-            video_file = args.input
+            media_file = args.input
 
-        # Convert MP4 to MP3
-        video_path = Path(video_file)
-        audio_file = video_path.with_suffix(".mp3")
-
-        convert_mp4_to_mp3(video_file, str(audio_file), verbose=args.verbose)
+        # Convert supported media to Whisper-ready WAV
+        video_path = Path(media_file)
+        audio_file = convert_media_to_whisper_audio(media_file, verbose=args.verbose)
 
         # Transcribe audio
         transcription = transcribe_audio(
@@ -105,7 +110,7 @@ Available Whisper models:
         if args.output:
             base = Path(args.output).with_suffix("")
         else:
-            # Save in the same directory as the video file with timestamped name
+            # Save in the same directory as the media file with timestamped name
             output_dir = video_path.parent
             timestamp = int(time.time())  # Unix epoch seconds
             base = output_dir / f"{video_path.stem}-transcript-{timestamp}"
