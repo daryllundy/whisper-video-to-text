@@ -6,8 +6,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 PROGRESSIVE_MP4_FORMAT = (
-    "best[ext=mp4][vcodec!=none][acodec!=none]/"
-    "best[vcodec!=none][acodec!=none]/best"
+    "best[ext=mp4][vcodec!=none][acodec!=none]/" "best[vcodec!=none][acodec!=none]/best"
 )
 ADAPTIVE_FORMAT = "bestvideo*+bestaudio/best"
 FORMAT_ATTEMPTS = (
