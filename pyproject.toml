@@ -82,4 +82,4 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.uv.extra-build-dependencies]
-openai-whisper = ["pkg_resources"]
+openai-whisper = ["setuptools<81"]
