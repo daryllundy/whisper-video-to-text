@@ -1,0 +1,333 @@
+/*
+ * Nord Design System — theme kernel
+ * Adapted from https://github.com/daryllundy/nord-design-system
+ * Provides design tokens (dark + light), base reset, and component primitives.
+ */
+
+:root,
+[data-theme="dark"] {
+  /* Polar Night / Snow Storm / Frost / Aurora */
+  --nord0: #2e3440;
+  --nord1: #3b4252;
+  --nord2: #434c5e;
+  --nord3: #4c566a;
+  --nord4: #d8dee9;
+  --nord5: #e5e9f0;
+  --nord6: #eceff4;
+  --nord7: #8fbcbb;
+  --nord8: #88c0d0;
+  --nord9: #81a1c1;
+  --nord10: #5e81ac;
+  --nord11: #bf616a;
+  --nord12: #d08770;
+  --nord13: #ebcb8b;
+  --nord14: #a3be8c;
+  --nord15: #b48ead;
+
+  /* Semantic surface + text (dark) */
+  --color-bg: var(--nord0);
+  --color-surface: var(--nord1);
+  --color-surface-alt: var(--nord2);
+  --color-border: var(--nord3);
+  --color-border-strong: color-mix(in srgb, var(--nord3) 60%, var(--nord4));
+  --color-text: var(--nord5);
+  --color-text-muted: color-mix(in srgb, var(--nord4) 75%, var(--nord3));
+  --color-heading: var(--nord6);
+
+  /* Accents */
+  --color-primary: var(--nord8);
+  --color-primary-strong: var(--nord10);
+  --color-accent: var(--nord7);
+  --color-focus: var(--nord9);
+  --color-success: var(--nord14);
+  --color-warning: var(--nord12);
+  --color-danger: var(--nord11);
+  --color-info: var(--nord9);
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Shadows (tuned for Arctic backgrounds) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration-med: 220ms;
+}
+
+[data-theme="light"] {
+  --color-bg: var(--nord6);
+  --color-surface: #ffffff;
+  --color-surface-alt: var(--nord5);
+  --color-border: color-mix(in srgb, var(--nord4) 75%, var(--nord3));
+  --color-border-strong: var(--nord3);
+  --color-text: var(--nord0);
+  --color-text-muted: color-mix(in srgb, var(--nord3) 80%, var(--nord0));
+  --color-heading: var(--nord0);
+
+  --color-primary: var(--nord10);
+  --color-primary-strong: color-mix(in srgb, var(--nord10) 75%, #000);
+  --color-accent: color-mix(in srgb, var(--nord7) 80%, var(--nord10));
+  --color-focus: var(--nord10);
+  --color-success: color-mix(in srgb, var(--nord14) 80%, #000);
+  --color-warning: color-mix(in srgb, var(--nord12) 80%, #000);
+  --color-danger: color-mix(in srgb, var(--nord11) 80%, #000);
+  --color-info: var(--nord10);
+
+  --shadow-sm: 0 1px 2px rgba(46, 52, 64, 0.1);
+  --shadow-md: 0 4px 12px rgba(46, 52, 64, 0.12);
+  --shadow-lg: 0 12px 32px rgba(46, 52, 64, 0.18);
+}
+
+/* ─── Base reset ───────────────────────────────────────── */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  color: var(--color-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+a:hover { color: var(--color-primary-strong); }
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Buttons ──────────────────────────────────────────── */
+
+.button,
+button.button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--nord0);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.button:hover {
+  background: var(--color-primary-strong);
+  border-color: var(--color-primary-strong);
+  color: var(--nord6);
+  box-shadow: var(--shadow-sm);
+}
+
+.button:active { transform: translateY(1px); }
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.button--ghost:hover {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border-strong);
+  color: var(--color-heading);
+}
+
+.button--subtle {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  border-color: transparent;
+}
+
+.button--subtle:hover {
+  background: color-mix(in srgb, var(--color-surface-alt) 70%, var(--color-primary));
+  color: var(--color-heading);
+}
+
+.button--danger {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--nord6);
+}
+
+.button--danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 80%, #000);
+  border-color: color-mix(in srgb, var(--color-danger) 80%, #000);
+}
+
+/* ─── Cards ────────────────────────────────────────────── */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Fields ───────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field__label,
+label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.input,
+input[type="text"],
+input[type="number"],
+input[type="url"],
+input[type="search"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out);
+}
+
+.input:hover,
+input[type="text"]:hover,
+select:hover { border-color: var(--color-border-strong); }
+
+.input:focus,
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="url"]:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+/* ─── Alerts ───────────────────────────────────────────── */
+
+.alert {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.alert--danger {
+  border-color: color-mix(in srgb, var(--color-danger) 60%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  color: color-mix(in srgb, var(--color-danger) 80%, var(--color-heading));
+}
+
+.alert--success {
+  border-color: color-mix(in srgb, var(--color-success) 60%, transparent);
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+  color: color-mix(in srgb, var(--color-success) 80%, var(--color-heading));
+}
+
+/* ─── Pills & badges ──────────────────────────────────── */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pill--primary {
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
+}
+
+.pill--success {
+  background: color-mix(in srgb, var(--color-success) 18%, transparent);
+  color: var(--color-success);
+}
+
+.pill--danger {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+}
+
+/* ─── Utility tokens exposed for apps ─────────────────── */
+
+.text-muted { color: var(--color-text-muted); }
+.text-accent { color: var(--color-accent); }
+.surface { background: var(--color-surface); }
