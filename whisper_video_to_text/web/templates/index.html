@@ -6,146 +6,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Whisper Video → Text</title>
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@400;500;600&display=swap"
     rel="stylesheet">
 
   <link rel="stylesheet" href="/static/style.css" />
 
-
   <script>
-    // Theme initialization
     (function () {
-      const savedTheme = localStorage.getItem('theme');
+      const saved = localStorage.getItem('theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-      if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
-        document.documentElement.setAttribute('data-theme', 'light');
-      } else {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
+      const theme = saved || (prefersDark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
     })();
-
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme');
-      const target = current === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', target);
-      localStorage.setItem('theme', target);
-
-      // Update button text
-      const btn = document.getElementById('theme-btn');
-      if (btn) btn.innerText = target === 'light' ? 'NIGHT MODE' : 'DAY MODE';
-    }
-
-    async function startJob(e) {
-      e.preventDefault();
-      const form = document.getElementById('form');
-      const data = new FormData(form);
-      // Ensure at least one of file or url provided
-      if (!data.get('file') && !data.get('url')) {
-        alert('Please choose a file or provide a URL.');
-        return;
-      }
-
-      const btn = document.querySelector('button[type="submit"]');
-      const originalText = btn.innerText;
-      btn.innerText = "INITIALIZING...";
-      btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/transcribe', { method: 'POST', body: data });
-        if (!res.ok) throw new Error('Request failed');
-        const { job_id } = await res.json();
-
-        btn.innerText = "PROCESSING...";
-        listen(job_id);
-
-        document.getElementById('status-container').style.display = 'block';
-        document.getElementById('status').textContent = 'QUEUED';
-        document.getElementById('status').style.color = 'var(--text-meta)';
-      } catch (err) {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        alert('Error starting transcription: ' + err.message);
-      }
-    }
-
-    function listen(jobId) {
-      const events = new EventSource(`/events/${jobId}`);
-      const bar = document.getElementById('bar');
-      const status = document.getElementById('status');
-      const message = document.getElementById('message');
-      const output = document.getElementById('output');
-      const btn = document.querySelector('button[type="submit"]');
-
-      events.onmessage = (ev) => {
-        const data = JSON.parse(ev.data);
-        bar.style.width = (data.progress || 0) + '%';
-
-        if (data.status) {
-          status.textContent = data.status.toUpperCase();
-          if (data.status === 'processing') status.style.color = 'var(--accent-yellow)';
-          if (data.status === 'complete') status.style.color = 'var(--text-primary)';
-          if (data.status === 'error') status.style.color = 'var(--accent-alert)';
-        }
-
-        message.textContent = data.message || '';
-
-        if (data.result && data.result.text) {
-          output.textContent = data.result.text;
-        }
-
-        if (data.status === 'complete' || data.status === 'error') {
-          events.close();
-          btn.innerText = "START TRANSCRIPTION";
-          btn.disabled = false;
-        }
-      };
-
-      events.onerror = () => {
-        events.close();
-        btn.innerText = "START TRANSCRIPTION";
-        btn.disabled = false;
-      }
-    }
   </script>
+
+  <script defer src="/static/app.js"></script>
 </head>
 
 <body>
 
-  <nav class="nav-bar">
-    <div>
-      <h3>WHISPER VIDEO → TEXT</h3>
+  <nav class="nav-bar reveal reveal-1">
+    <div class="nav-bar__brand">
+      <h3>Whisper<span class="nav-bar__brand-arrow"> → </span><em>Text</em></h3>
     </div>
-    <div class="meta" style="display: flex; align-items: center; gap: 1rem;">
-      <button id="history-btn" class="theme-toggle" onclick="toggleHistory()">HISTORY</button>
-      <button id="theme-btn" class="theme-toggle" onclick="toggleTheme()">DAY MODE</button>
-      <span>SYSTEM STATUS: ONLINE</span>
+    <div class="nav-bar__actions meta">
+      <button id="history-btn" class="theme-toggle" type="button">HISTORY</button>
+      <button id="theme-btn" class="theme-toggle" type="button">DAY MODE</button>
+      <span class="nav-bar__status">SYSTEM STATUS: ONLINE</span>
     </div>
   </nav>
 
-  <script>
-    // Initialize button text correctly on load
-    document.addEventListener('DOMContentLoaded', () => {
-      const current = document.documentElement.getAttribute('data-theme');
-      const btn = document.getElementById('theme-btn');
-      if (btn) btn.innerText = current === 'light' ? 'NIGHT MODE' : 'DAY MODE';
-    });
-  </script>
-
   <main class="grid-container">
 
-    <!-- Column 1: Primary System (Inputs) -->
-    <div class="grid-item">
-      <div class="meta" style="margin-bottom: 1rem;">// 01. INPUT PARAMETERS</div>
+    <section class="grid-item reveal reveal-2" aria-labelledby="input-heading">
+      <div id="input-heading" class="meta section-heading">// 01. INPUT PARAMETERS</div>
 
-      <form id="form" onsubmit="startJob(event)">
+      <form id="form">
         <div class="card">
           <label for="file">SOURCE MEDIA FILE</label>
-          <input id="file" name="file" type="file" accept=".mp3,.wav,.aif,.aiff,.mp4,.mov,audio/mpeg,audio/wav,audio/aiff,video/mp4,video/quicktime" />
+          <input id="file" name="file" type="file"
+            accept=".mp3,.wav,.aif,.aiff,.mp4,.mov,audio/mpeg,audio/wav,audio/aiff,video/mp4,video/quicktime" />
 
           <div class="divider-text">OR</div>
 
@@ -171,183 +74,65 @@
             </div>
           </div>
 
-          <div style="margin-top: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" name="timestamps" id="timestamps" style="width: auto; margin: 0;">
-            <label for="timestamps" style="margin: 0; cursor: pointer;">INCLUDE TIMESTAMPS</label>
+          <div class="checkbox-row">
+            <input type="checkbox" name="timestamps" id="timestamps">
+            <label for="timestamps" class="checkbox-label">INCLUDE TIMESTAMPS</label>
           </div>
         </div>
 
-        <button class="btn btn-primary" type="submit">START TRANSCRIPTION</button>
+        <div id="form-error" class="form-error" role="alert" hidden></div>
+
+        <button id="submit-btn" class="btn btn-primary" type="submit">START TRANSCRIPTION</button>
       </form>
-    </div>
+    </section>
 
-    <!-- Column 2: Data Output (Status + Logs) -->
-    <div class="grid-item" style="border-left: 1px solid var(--border-light);">
-      <div class="meta" style="margin-bottom: 1rem;">// 02. DATA OUTPUT</div>
+    <section class="grid-item grid-item--output reveal reveal-3" aria-labelledby="output-heading">
+      <div id="output-heading" class="meta section-heading">// 02. DATA OUTPUT</div>
 
-      <!-- Status Section moved here -->
-      <div id="status-container" class="card" style="display: none;">
-        <label>JOB STATUS</label>
-        <div id="status" style="font-size: 1.2rem; font-weight: 500; margin-bottom: 0.5rem;">WAITING</div>
-        <div id="message" class="meta" style="margin-bottom: 1rem;">Ready for input...</div>
-
-        <div id="downloads" style="display: none; gap: 0.5rem; margin-bottom: 1rem;">
-          <!-- Download buttons will be injected here -->
+      <div id="status-container" class="card status-card" hidden>
+        <div class="status-card__header">
+          <div>
+            <div class="meta">JOB STATUS</div>
+            <div id="status" class="status-card__state" data-state="queued" aria-live="polite">WAITING</div>
+          </div>
+          <div class="status-card__elapsed">
+            <div class="meta">ELAPSED</div>
+            <div id="elapsed" class="status-card__timer">0:00</div>
+          </div>
         </div>
 
-        <label>PROGRESS</label>
-        <div class="progress">
-          <div id="bar" class="bar"></div>
-        </div>
+        <div id="message" class="meta status-card__message" aria-live="polite">Ready for input...</div>
+
+        <div id="phase-ladder" class="phase-ladder" aria-hidden="true"></div>
+
+        <div id="downloads" class="downloads" hidden></div>
       </div>
 
-      <!-- Worker info kept small or moved -->
-      <div class="card" style="opacity: 0.5; padding: 1rem;">
-        <div class="row" style="gap: 2rem;">
+      <div class="card worker-card">
+        <div class="row worker-card__row">
           <div class="meta">WORKER: LOCAL_INSTANCE_01</div>
           <div class="meta">DEVICE: CPU/GPU</div>
         </div>
       </div>
 
-      <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+      <div class="card transcript-card">
         <label>TRANSCRIPT LOG</label>
-        <pre id="output" style="flex: 1;">Waiting for data stream...</pre>
+        <pre id="output" class="transcript">Waiting for data stream...</pre>
       </div>
-    </div>
+    </section>
 
   </main>
 
-  <script>
-    function listen(jobId) {
-      const events = new EventSource(`/events/${jobId}`);
-      const bar = document.getElementById('bar');
-      const status = document.getElementById('status');
-      const message = document.getElementById('message');
-      const output = document.getElementById('output');
-      const downloadContainer = document.getElementById('downloads');
-      const btn = document.querySelector('button[type="submit"]');
-
-      events.onmessage = (ev) => {
-        const data = JSON.parse(ev.data);
-        bar.style.width = (data.progress || 0) + '%';
-
-        if (data.status) {
-          status.textContent = data.status.toUpperCase();
-          if (data.status === 'processing') status.style.color = 'var(--accent-yellow)';
-          if (data.status === 'complete') status.style.color = 'var(--text-primary)';
-          if (data.status === 'error') status.style.color = 'var(--accent-alert)';
-        }
-
-        message.textContent = data.message || '';
-
-        if (data.result && data.result.text) {
-          output.textContent = data.result.text;
-        }
-
-        if (data.status === 'complete') {
-          events.close();
-          btn.innerText = "START TRANSCRIPTION";
-          btn.disabled = false;
-
-          // Show download buttons
-          if (data.result && data.result.formats) {
-            downloadContainer.innerHTML = '';
-            downloadContainer.style.display = 'flex';
-
-            Object.keys(data.result.formats).forEach(ext => {
-              const link = document.createElement('a');
-              link.href = `/download/${jobId}/${ext}`;
-              link.className = 'btn';
-              link.style.padding = '0.5rem 1rem';
-              link.style.fontSize = '0.8rem';
-              link.style.textDecoration = 'none';
-              link.style.border = '1px solid var(--border-light)';
-              link.textContent = `DOWNLOAD .${ext.toUpperCase()}`;
-              link.target = '_blank';
-              downloadContainer.appendChild(link);
-            });
-          }
-        }
-
-        if (data.status === 'error') {
-          events.close();
-          btn.innerText = "START TRANSCRIPTION";
-          btn.disabled = false;
-        }
-      };
-
-      events.onerror = () => {
-        events.close();
-        btn.innerText = "START TRANSCRIPTION";
-        btn.disabled = false;
-      }
-    }
-  </script>
-  <div id="history-modal" class="modal"
-    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card"
-      style="width: 80%; max-width: 800px; max-height: 80vh; overflow-y: auto; background: var(--bg-primary); border: 1px solid var(--border-light);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h3>TRANSCRIPT HISTORY</h3>
-        <button onclick="toggleHistory()" class="btn" style="padding: 0.5rem;">CLOSE</button>
+  <div id="history-modal" class="modal" hidden>
+    <div class="modal__panel card">
+      <div class="modal__header">
+        <h3>Transcript <em>History</em></h3>
+        <button id="history-close" class="btn btn-compact" type="button">CLOSE</button>
       </div>
-      <div id="history-list" style="display: flex; flex-direction: column; gap: 1rem;">
-        <!-- History items injected here -->
-      </div>
+      <div id="history-list" class="modal__list"></div>
     </div>
   </div>
 
-  <script>
-    async function toggleHistory() {
-      const modal = document.getElementById('history-modal');
-      const list = document.getElementById('history-list');
-
-      if (modal.style.display === 'none') {
-        modal.style.display = 'flex';
-        // Fetch history
-        try {
-          list.innerHTML = '<div class="meta">Loading...</div>';
-          const res = await fetch('/api/history');
-          const history = await res.json();
-
-          if (history.length === 0) {
-            list.innerHTML = '<div class="meta">No transcripts found.</div>';
-            return;
-          }
-
-          list.innerHTML = '';
-          history.forEach(item => {
-            const date = new Date(item.date).toLocaleString();
-            const el = document.createElement('div');
-            el.className = 'card';
-            el.style.marginBottom = '0';
-
-            let downloadLinks = '';
-            item.formats.forEach(fmt => {
-              downloadLinks += `<a href="/download/${item.job_id}/${fmt}" target="_blank" class="btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; text-decoration: none; margin-left: 0.5rem;">${fmt.toUpperCase()}</a>`;
-            });
-
-            el.innerHTML = `
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 500;">Job ID: ${item.job_id}</div>
-                  <div class="meta">${date}</div>
-                </div>
-                <div>
-                  ${downloadLinks}
-                </div>
-              </div>
-            `;
-            list.appendChild(el);
-          });
-        } catch (err) {
-          list.innerHTML = `<div class="meta" style="color: var(--accent-alert);">Error loading history: ${err.message}</div>`;
-        }
-      } else {
-        modal.style.display = 'none';
-      }
-    }
-  </script>
 </body>
 
 </html>
