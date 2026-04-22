@@ -148,3 +148,4 @@ temp/
 tmp/
 .claude/settings.local.json
 .kiro/
+.claude/
