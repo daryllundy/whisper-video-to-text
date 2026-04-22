@@ -222,42 +222,46 @@ function listen(jobId) {
   };
 }
 
-async function toggleHistory() {
+async function openHistory() {
   const modal = document.getElementById('history-modal');
   const list = document.getElementById('history-list');
 
-  if (modal.hidden) {
-    modal.hidden = false;
+  if (typeof modal.showModal === 'function') modal.showModal();
+  else modal.setAttribute('open', '');
+
+  list.replaceChildren();
+  const loading = document.createElement('div');
+  loading.className = 'meta';
+  loading.textContent = 'Loading...';
+  list.appendChild(loading);
+
+  try {
+    const res = await fetch('/api/history');
+    const history = await res.json();
     list.replaceChildren();
-    const loading = document.createElement('div');
-    loading.className = 'meta';
-    loading.textContent = 'Loading...';
-    list.appendChild(loading);
 
-    try {
-      const res = await fetch('/api/history');
-      const history = await res.json();
-      list.replaceChildren();
-
-      if (history.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'meta';
-        empty.textContent = 'No transcripts found.';
-        list.appendChild(empty);
-        return;
-      }
-
-      history.forEach(item => list.appendChild(buildHistoryItem(item)));
-    } catch (err) {
-      list.replaceChildren();
-      const errEl = document.createElement('div');
-      errEl.className = 'meta error-text';
-      errEl.textContent = `Error loading history: ${err.message}`;
-      list.appendChild(errEl);
+    if (history.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'meta';
+      empty.textContent = 'No transcripts found.';
+      list.appendChild(empty);
+      return;
     }
-  } else {
-    modal.hidden = true;
+
+    history.forEach(item => list.appendChild(buildHistoryItem(item)));
+  } catch (err) {
+    list.replaceChildren();
+    const errEl = document.createElement('div');
+    errEl.className = 'meta error-text';
+    errEl.textContent = `Error loading history: ${err.message}`;
+    list.appendChild(errEl);
   }
+}
+
+function closeHistory() {
+  const modal = document.getElementById('history-modal');
+  if (typeof modal.close === 'function') modal.close();
+  else modal.removeAttribute('open');
 }
 
 function buildHistoryItem(item) {
@@ -285,6 +289,110 @@ function buildHistoryItem(item) {
   return card;
 }
 
+function formatSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  let n = bytes;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function showFilePreview(file) {
+  const zone = document.getElementById('file-zone');
+  const drop = document.getElementById('file-zone-drop');
+  const preview = document.getElementById('file-preview');
+  const name = document.getElementById('file-preview-name');
+  const size = document.getElementById('file-preview-size');
+  if (!file) {
+    drop.hidden = false;
+    preview.hidden = true;
+    zone.classList.remove('file-zone--filled');
+    return;
+  }
+  name.textContent = file.name;
+  size.textContent = formatSize(file.size);
+  drop.hidden = true;
+  preview.hidden = false;
+  zone.classList.add('file-zone--filled');
+}
+
+function clearFile() {
+  const input = document.getElementById('file');
+  input.value = '';
+  showFilePreview(null);
+}
+
+function wireFileZone() {
+  const input = document.getElementById('file');
+  const drop = document.getElementById('file-zone-drop');
+  const remove = document.getElementById('file-remove');
+
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    showFilePreview(file || null);
+    if (file) clearError();
+  });
+
+  remove.addEventListener('click', clearFile);
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    drop.addEventListener(evt, e => {
+      e.preventDefault();
+      drop.classList.add('file-zone__drop--over');
+    });
+  });
+  ['dragleave', 'dragend', 'drop'].forEach(evt => {
+    drop.addEventListener(evt, e => {
+      e.preventDefault();
+      drop.classList.remove('file-zone__drop--over');
+    });
+  });
+  drop.addEventListener('drop', e => {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      input.files = dt.files;
+    } catch {
+      // Older browsers: fall back to file-input API directly.
+      input.files = files;
+    }
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+async function copyTranscript() {
+  const output = document.getElementById('output');
+  const btn = document.getElementById('copy-btn');
+  const text = output.textContent || '';
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const orig = btn.textContent;
+    btn.textContent = 'COPIED';
+    btn.classList.add('copy-btn--confirmed');
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.classList.remove('copy-btn--confirmed');
+    }, 1200);
+  } catch {
+    btn.textContent = 'COPY FAILED';
+    setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
+  }
+}
+
+function updateCopyButtonState() {
+  const btn = document.getElementById('copy-btn');
+  const output = document.getElementById('output');
+  const hasText = output.textContent && output.textContent.trim() !== '' && output.textContent !== 'Waiting for data stream...';
+  btn.disabled = !hasText;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const current = document.documentElement.getAttribute('data-theme');
   const themeBtn = document.getElementById('theme-btn');
@@ -292,6 +400,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('form').addEventListener('submit', startJob);
   themeBtn.addEventListener('click', toggleTheme);
-  document.getElementById('history-btn').addEventListener('click', toggleHistory);
-  document.getElementById('history-close').addEventListener('click', toggleHistory);
+  document.getElementById('history-btn').addEventListener('click', openHistory);
+  document.getElementById('history-close').addEventListener('click', closeHistory);
+  document.getElementById('copy-btn').addEventListener('click', copyTranscript);
+
+  wireFileZone();
+
+  const output = document.getElementById('output');
+  new MutationObserver(updateCopyButtonState).observe(output, { characterData: true, childList: true, subtree: true });
+  updateCopyButtonState();
 });

@@ -47,8 +47,23 @@
       <form id="form">
         <div class="card">
           <label for="file">SOURCE MEDIA FILE</label>
-          <input id="file" name="file" type="file"
-            accept=".mp3,.wav,.aif,.aiff,.mp4,.mov,audio/mpeg,audio/wav,audio/aiff,video/mp4,video/quicktime" />
+          <div class="file-zone" id="file-zone">
+            <input id="file" name="file" type="file"
+              class="file-zone__input"
+              accept=".mp3,.wav,.aif,.aiff,.mp4,.mov,audio/mpeg,audio/wav,audio/aiff,video/mp4,video/quicktime" />
+            <label for="file" class="file-zone__drop" id="file-zone-drop">
+              <span class="file-zone__glyph" aria-hidden="true">↓</span>
+              <span class="file-zone__text">Drop a file here or <span class="file-zone__link">browse</span></span>
+              <span class="meta file-zone__hint">.MP3 · .WAV · .AIF · .AIFF · .MP4 · .MOV</span>
+            </label>
+            <div class="file-zone__preview" id="file-preview" hidden>
+              <div class="file-zone__preview-body">
+                <div class="file-zone__preview-name" id="file-preview-name"></div>
+                <div class="meta file-zone__preview-meta" id="file-preview-size"></div>
+              </div>
+              <button type="button" id="file-remove" class="btn btn-compact file-zone__remove">REMOVE</button>
+            </div>
+          </div>
 
           <div class="divider-text">OR</div>
 
@@ -78,6 +93,22 @@
             <input type="checkbox" name="timestamps" id="timestamps">
             <label for="timestamps" class="checkbox-label">INCLUDE TIMESTAMPS</label>
           </div>
+
+          <fieldset class="format-fieldset">
+            <legend class="meta">OUTPUT FORMATS</legend>
+            <label class="checkbox-inline">
+              <input type="checkbox" name="formats" value="txt" checked>
+              <span>TXT</span>
+            </label>
+            <label class="checkbox-inline">
+              <input type="checkbox" name="formats" value="srt">
+              <span>SRT</span>
+            </label>
+            <label class="checkbox-inline">
+              <input type="checkbox" name="formats" value="vtt">
+              <span>VTT</span>
+            </label>
+          </fieldset>
         </div>
 
         <div id="form-error" class="form-error" role="alert" hidden></div>
@@ -116,22 +147,25 @@
       </div>
 
       <div class="card transcript-card">
-        <label>TRANSCRIPT LOG</label>
+        <div class="transcript-card__header">
+          <label>TRANSCRIPT LOG</label>
+          <button type="button" id="copy-btn" class="btn btn-compact copy-btn" disabled>COPY</button>
+        </div>
         <pre id="output" class="transcript">Waiting for data stream...</pre>
       </div>
     </section>
 
   </main>
 
-  <div id="history-modal" class="modal" hidden>
+  <dialog id="history-modal" class="modal" aria-labelledby="history-title">
     <div class="modal__panel card">
       <div class="modal__header">
-        <h3>Transcript <em>History</em></h3>
+        <h3 id="history-title">Transcript <em>History</em></h3>
         <button id="history-close" class="btn btn-compact" type="button">CLOSE</button>
       </div>
       <div id="history-list" class="modal__list"></div>
     </div>
-  </div>
+  </dialog>
 
 </body>
 
