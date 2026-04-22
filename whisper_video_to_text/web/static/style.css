@@ -1,35 +1,34 @@
-/* Signal Room — Luxurious Brutalism × Tech-Noir, refreshed */
+/* Signal Room layout, themed through the Nord token kernel. */
 :root {
-  --bg-core: #050505;
-  --bg-surface: #0F0F0F;
-  --bg-surface-2: #1A1A1A;
+  --bg-core: var(--color-bg);
+  --bg-surface: var(--color-surface);
+  --bg-surface-2: var(--color-surface-alt);
 
-  --text-primary: #FFFFFF;
-  --text-secondary: #888888;
-  --text-meta: #555555;
+  --text-primary: var(--color-heading);
+  --text-secondary: var(--color-text);
+  --text-meta: var(--color-text-muted);
 
-  --accent-yellow: #F4D35E;
-  --accent-success: #7FB069;
-  --accent-alert: #FF3333;
+  --accent-yellow: var(--color-primary);
+  --accent-success: var(--color-success);
+  --accent-alert: var(--color-danger);
 
-  --border-light: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(255, 255, 255, 0.2);
+  --border-light: var(--color-border);
+  --border-active: var(--color-border-strong);
 
-  --font-display: 'Instrument Serif', 'Iowan Old Style', 'Apple Garamond', Georgia, serif;
-  --font-body: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
 }
 
 [data-theme="light"] {
-  --bg-core: #F4F4F4;
-  --bg-surface: #FFFFFF;
-  --bg-surface-2: #EAEAEA;
-  --text-primary: #050505;
-  --text-secondary: #666666;
-  --text-meta: #777777;
-  --accent-success: #4F8F3F;
-  --border-light: rgba(0, 0, 0, 0.1);
-  --border-active: rgba(0, 0, 0, 0.2);
+  --bg-core: var(--color-bg);
+  --bg-surface: var(--color-surface);
+  --bg-surface-2: var(--color-surface-alt);
+  --text-primary: var(--color-heading);
+  --text-secondary: var(--color-text);
+  --text-meta: var(--color-text-muted);
+  --accent-success: var(--color-success);
+  --border-light: var(--color-border);
+  --border-active: var(--color-border-strong);
 }
 
 * { box-sizing: border-box; }
@@ -43,12 +42,22 @@ html, body {
 body {
   font-family: var(--font-body);
   background: var(--bg-core);
+  background-image:
+    radial-gradient(ellipse 800px 420px at 12% -10%, color-mix(in srgb, var(--color-primary) 18%, transparent), transparent 60%),
+    radial-gradient(ellipse 700px 360px at 110% 120%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 60%);
+  background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   isolation: isolate;
+}
+
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse 800px 420px at 12% -10%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 60%),
+    radial-gradient(ellipse 700px 360px at 110% 120%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 60%);
 }
 
 /* Grain overlay — fixed so it persists across scroll */
@@ -66,7 +75,7 @@ body::before {
 
 h1, h2, h3 {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -79,6 +88,7 @@ em {
   font-family: var(--font-display);
   font-style: italic;
   color: var(--accent-yellow);
+  font-weight: 500;
 }
 
 .meta {
@@ -151,7 +161,7 @@ em {
   cursor: pointer;
   text-transform: uppercase;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
-  border-radius: 0;
+  border-radius: var(--radius-md);
 }
 
 .theme-toggle:hover {
@@ -207,9 +217,11 @@ em {
 .card {
   background: linear-gradient(180deg, var(--bg-surface) 0%, color-mix(in srgb, var(--bg-surface) 85%, #000) 100%);
   border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin-bottom: 1rem;
   transition: border-color 120ms linear, transform 120ms ease-out;
+  box-shadow: var(--shadow-sm);
 }
 
 .card:hover {
@@ -240,7 +252,7 @@ select {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   color: var(--text-primary);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
   font-size: 0.9rem;
   outline: none;
@@ -258,6 +270,7 @@ input[type="file"] {
   padding: 1rem;
   background: var(--bg-surface);
   border: 1px dashed var(--border-light);
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--text-secondary);
@@ -295,7 +308,7 @@ input[type="file"]:hover { border-color: var(--text-secondary); }
   font-size: 0.8rem;
   letter-spacing: 0.08em;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: var(--radius-md);
   transition: all 120ms ease;
   margin-top: 1.5rem;
   width: 100%;
