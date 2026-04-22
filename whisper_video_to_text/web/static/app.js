@@ -326,6 +326,49 @@ function clearFile() {
   showFilePreview(null);
 }
 
+const ACCEPTED_EXTENSIONS = ['.mp3', '.wav', '.aif', '.aiff', '.mp4', '.mov'];
+const ACCEPTED_MIMES = new Set([
+  'audio/mpeg', 'audio/mp3',
+  'audio/wav', 'audio/wave', 'audio/x-wav',
+  'audio/aiff', 'audio/x-aiff',
+  'video/mp4',
+  'video/quicktime', 'video/x-quicktime',
+]);
+
+function verdictForMime(type) {
+  if (!type) return 'unknown';
+  return ACCEPTED_MIMES.has(type) ? 'accept' : 'reject';
+}
+
+function verdictForDragEvent(e) {
+  const items = e.dataTransfer && e.dataTransfer.items;
+  if (!items || items.length === 0) return 'unknown';
+  const fileItems = Array.from(items).filter(i => i.kind === 'file');
+  if (fileItems.length === 0) return 'reject';
+  if (fileItems.length > 1) return 'reject';
+  return verdictForMime(fileItems[0].type);
+}
+
+function isAcceptedFile(file) {
+  if (!file) return false;
+  if (file.type && ACCEPTED_MIMES.has(file.type)) return true;
+  const name = (file.name || '').toLowerCase();
+  return ACCEPTED_EXTENSIONS.some(ext => name.endsWith(ext));
+}
+
+function applyDropVerdict(drop, verdict) {
+  drop.classList.toggle('file-zone__drop--over', verdict === 'accept' || verdict === 'unknown');
+  drop.classList.toggle('file-zone__drop--reject', verdict === 'reject');
+  const glyph = drop.querySelector('.file-zone__glyph');
+  if (glyph) glyph.textContent = verdict === 'reject' ? '✕' : '↓';
+}
+
+function clearDropVerdict(drop) {
+  drop.classList.remove('file-zone__drop--over', 'file-zone__drop--reject');
+  const glyph = drop.querySelector('.file-zone__glyph');
+  if (glyph) glyph.textContent = '↓';
+}
+
 function wireFileZone() {
   const input = document.getElementById('file');
   const drop = document.getElementById('file-zone-drop');
@@ -342,24 +385,37 @@ function wireFileZone() {
   ['dragenter', 'dragover'].forEach(evt => {
     drop.addEventListener(evt, e => {
       e.preventDefault();
-      drop.classList.add('file-zone__drop--over');
+      const verdict = verdictForDragEvent(e);
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = verdict === 'reject' ? 'none' : 'copy';
+      }
+      applyDropVerdict(drop, verdict);
     });
   });
-  ['dragleave', 'dragend', 'drop'].forEach(evt => {
-    drop.addEventListener(evt, e => {
-      e.preventDefault();
-      drop.classList.remove('file-zone__drop--over');
-    });
+
+  ['dragleave', 'dragend'].forEach(evt => {
+    drop.addEventListener(evt, () => clearDropVerdict(drop));
   });
+
   drop.addEventListener('drop', e => {
+    e.preventDefault();
+    clearDropVerdict(drop);
     const files = e.dataTransfer && e.dataTransfer.files;
     if (!files || files.length === 0) return;
+    if (files.length > 1) {
+      showError('Drop one file at a time.');
+      return;
+    }
+    const file = files[0];
+    if (!isAcceptedFile(file)) {
+      showError(`Unsupported file: ${file.name || file.type || 'unknown type'}. Accepted: ${ACCEPTED_EXTENSIONS.join(', ')}`);
+      return;
+    }
     try {
       const dt = new DataTransfer();
-      dt.items.add(files[0]);
+      dt.items.add(file);
       input.files = dt.files;
     } catch {
-      // Older browsers: fall back to file-input API directly.
       input.files = files;
     }
     input.dispatchEvent(new Event('change', { bubbles: true }));

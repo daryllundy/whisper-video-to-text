@@ -314,13 +314,23 @@ select:focus {
   color: var(--accent-yellow);
 }
 
+.file-zone__drop--reject {
+  border-color: var(--accent-alert);
+  border-style: solid;
+  background: color-mix(in srgb, var(--accent-alert) 8%, var(--bg-surface));
+  color: var(--accent-alert);
+  cursor: not-allowed;
+}
+
 .file-zone__glyph {
   font-family: var(--font-mono);
   font-size: 1.4rem;
   color: var(--text-meta);
+  transition: color 120ms ease;
 }
 
 .file-zone__drop--over .file-zone__glyph { color: var(--accent-yellow); }
+.file-zone__drop--reject .file-zone__glyph { color: var(--accent-alert); }
 
 .file-zone__link {
   color: var(--accent-yellow);
