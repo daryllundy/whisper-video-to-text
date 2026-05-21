@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
+from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
 from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 from whisper_video_to_text.web.progress import (
     create_job,
@@ -131,9 +132,14 @@ def run_transcription_task(
             download = True
             update_progress_sync(job_id, 5, "starting", "Starting download...")
         elif file:
+            suffix = Path(file.filename or "").suffix.lower()
+            if suffix not in SUPPORTED_MEDIA_EXTENSIONS:
+                supported = ", ".join(sorted(SUPPORTED_MEDIA_EXTENSIONS))
+                msg = f"Unsupported file type '{suffix}'. Supported: {supported}"
+                update_progress_sync(job_id, 100, "error", msg)
+                return
             update_progress_sync(job_id, 5, "uploading", "Saving uploaded file...")
-            safe_filename = Path(file.filename or "upload").name
-            dest = os.path.join("uploads", safe_filename)
+            dest = os.path.join("uploads", f"{job_id}{suffix}")
             with open(dest, "wb") as f_out:
                 shutil.copyfileobj(file.file, f_out)
             source = dest
