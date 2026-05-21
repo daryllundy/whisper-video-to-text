@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import shutil
-import tempfile
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
@@ -13,14 +12,7 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from whisper_video_to_text.convert import convert_media_to_whisper_audio
-from whisper_video_to_text.download import download_video
-from whisper_video_to_text.transcribe import (
-    render_srt,
-    render_txt,
-    render_vtt,
-    transcribe_audio,
-)
+from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 from whisper_video_to_text.web.progress import (
     create_job,
     get_job,
@@ -132,69 +124,50 @@ def run_transcription_task(
     if formats is None:
         formats = ["txt"]
 
-    tempdir = tempfile.mkdtemp(prefix="wvttmp_")
     try:
-        media_path: str | None = None
-
-        # Download or save uploaded file
+        # Resolve source: save upload to disk, or pass URL directly to pipeline
         if url:
-            update_progress_sync(job_id, 10, "downloading", "Downloading video...")
-            media_path = download_video(url, output_dir=tempdir)
+            source = url
+            download = True
+            update_progress_sync(job_id, 5, "starting", "Starting download...")
         elif file:
-            update_progress_sync(job_id, 10, "uploading", "Saving uploaded file...")
-            # Save uploaded file to uploads directory
+            update_progress_sync(job_id, 5, "uploading", "Saving uploaded file...")
             safe_filename = Path(file.filename or "upload").name
             dest = os.path.join("uploads", safe_filename)
             with open(dest, "wb") as f_out:
                 shutil.copyfileobj(file.file, f_out)
-            media_path = dest
+            source = dest
+            download = False
         else:
             update_progress_sync(job_id, 100, "error", "No file or URL provided")
             return
 
-        update_progress_sync(job_id, 30, "converting", "Extracting audio...")
-        audio_output = Path(tempdir) / f"{Path(media_path).stem}-whisper.wav"
-        audio_path = convert_media_to_whisper_audio(
-            media_path, output_file=str(audio_output), verbose=False
+        request = TranscriptionRequest(
+            source=source,
+            download=download,
+            model=model,
+            language=language,
+            formats=tuple(formats),
+            include_timestamps=timestamps,
+            output_base=Path("transcripts") / job_id,
+        )
+        result = run_transcription(
+            request,
+            progress=lambda pct, status, msg: update_progress_sync(job_id, pct, status, msg),
         )
 
-        update_progress_sync(job_id, 60, "transcribing", "Transcribing audio...")
-        result = transcribe_audio(
-            str(audio_path), model_name=model, language=language, verbose=False
+        set_result_sync(
+            job_id,
+            {
+                "text": result.text,
+                "language": result.language,
+                "formats": result.rendered,
+            },
         )
-
-        update_progress_sync(job_id, 90, "saving", "Preparing output...")
-
-        # Build response with requested formats
-        output: dict[str, Any] = {
-            "text": result.get("text", ""),
-            "language": result.get("language"),
-            "formats": {},
-        }
-
-        # Generate outputs based on requested formats
-        if "txt" in formats:
-            output["formats"]["txt"] = render_txt(result, include_timestamps=timestamps)
-
-        if "srt" in formats:
-            output["formats"]["srt"] = render_srt(result)
-
-        if "vtt" in formats:
-            output["formats"]["vtt"] = render_vtt(result)
-
-        # Save files to transcripts directory
-        for fmt, content in output["formats"].items():
-            file_path = os.path.join("transcripts", f"{job_id}.{fmt}")
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-        set_result_sync(job_id, output)
 
     except Exception as e:
         logging.exception(f"Transcription error for job {job_id}: {e}")
         update_progress_sync(job_id, 100, "error", f"Error: {e}")
-    finally:
-        shutil.rmtree(tempdir, ignore_errors=True)
 
 
 @router.post("/api/transcribe")
