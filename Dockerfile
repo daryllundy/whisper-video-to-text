@@ -54,8 +54,12 @@ RUN set -e && \
     python -c "import whisper_video_to_text; print('Package imported successfully')" && \
     useradd --create-home --shell /bin/bash appuser && \
     # Create necessary directories for volumes with correct permissions
-    mkdir -p /app/uploads /app/transcripts && \
-    chown -R appuser:appuser /app && \
+    mkdir -p \
+        /app/uploads \
+        /app/transcripts \
+        /home/appuser/.cache/whisper \
+        /home/appuser/.cache/yt-dlp && \
+    chown -R appuser:appuser /app /home/appuser/.cache && \
     echo "✓ Application setup completed"
 
 # Switch to non-root user
