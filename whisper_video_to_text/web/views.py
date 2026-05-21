@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import tempfile
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,9 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from whisper_video_to_text.convert import convert_media_to_whisper_audio
 from whisper_video_to_text.download import download_video
 from whisper_video_to_text.transcribe import (
+    render_srt,
+    render_txt,
+    render_vtt,
     transcribe_audio,
 )
 from whisper_video_to_text.web.progress import (
@@ -39,7 +43,7 @@ async def events(job_id: str) -> StreamingResponse:
     if not job:
         return JSONResponse({"error": "Job not found"}, status_code=404)  # type: ignore[return-value]
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         async for update in progress_stream(job_id):
             yield f"data: {json.dumps(update)}\n\n"
 
@@ -170,41 +174,13 @@ def run_transcription_task(
 
         # Generate outputs based on requested formats
         if "txt" in formats:
-            if timestamps and result.get("segments"):
-                # Include timestamps in text output
-                lines = []
-                for seg in result["segments"]:
-                    start = seg.get("start", 0)
-                    text = seg.get("text", "").strip()
-                    lines.append(f"[{start:.2f}s] {text}")
-                output["formats"]["txt"] = "\n".join(lines)
-            else:
-                output["formats"]["txt"] = result.get("text", "")
+            output["formats"]["txt"] = render_txt(result, include_timestamps=timestamps)
 
         if "srt" in formats:
-            # Generate SRT content
-            srt_lines = []
-            for i, seg in enumerate(result.get("segments", []), 1):
-                start = seg.get("start", 0)
-                end = seg.get("end", 0)
-                text = seg.get("text", "").strip()
-                srt_lines.append(str(i))
-                srt_lines.append(f"{_format_srt_time(start)} --> {_format_srt_time(end)}")
-                srt_lines.append(text)
-                srt_lines.append("")
-            output["formats"]["srt"] = "\n".join(srt_lines)
+            output["formats"]["srt"] = render_srt(result)
 
         if "vtt" in formats:
-            # Generate VTT content
-            vtt_lines = ["WEBVTT", ""]
-            for seg in result.get("segments", []):
-                start = seg.get("start", 0)
-                end = seg.get("end", 0)
-                text = seg.get("text", "").strip()
-                vtt_lines.append(f"{_format_vtt_time(start)} --> {_format_vtt_time(end)}")
-                vtt_lines.append(text)
-                vtt_lines.append("")
-            output["formats"]["vtt"] = "\n".join(vtt_lines)
+            output["formats"]["vtt"] = render_vtt(result)
 
         # Save files to transcripts directory
         for fmt, content in output["formats"].items():
@@ -221,24 +197,6 @@ def run_transcription_task(
         shutil.rmtree(tempdir, ignore_errors=True)
 
 
-def _format_srt_time(seconds: float) -> str:
-    """Format seconds as SRT timestamp (HH:MM:SS,mmm)."""
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02}:{m:02}:{s:02},{ms:03}"
-
-
-def _format_vtt_time(seconds: float) -> str:
-    """Format seconds as VTT timestamp (HH:MM:SS.mmm)."""
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02}:{m:02}:{s:02}.{ms:03}"
-
-
 @router.post("/api/transcribe")
 async def transcribe_api(
     background_tasks: BackgroundTasks,
@@ -250,12 +208,15 @@ async def transcribe_api(
 
     # Get form data from request
     form = await request.form()
-    file = form.get("file")
-    url = form.get("url")
-    model = form.get("model", "base")
-    language = form.get("language")
-    formats_list = form.getlist("formats")
-    formats = formats_list if formats_list else ["txt"]
+    _file = form.get("file")
+    file: UploadFile | None = _file if isinstance(_file, UploadFile) else None
+    _url = form.get("url")
+    url: str | None = _url if isinstance(_url, str) else None
+    _model = form.get("model", "base")
+    model: str = _model if isinstance(_model, str) else "base"
+    _language = form.get("language")
+    language: str | None = _language if isinstance(_language, str) and _language else None
+    formats: list[str] = [f for f in form.getlist("formats") if isinstance(f, str)] or ["txt"]
     timestamps = str(form.get("timestamps", "false")).lower() == "true"
 
     # Start background task with user input
@@ -264,8 +225,8 @@ async def transcribe_api(
         job_id,
         file=file,
         url=url,
-        model=model if isinstance(model, str) else "base",
-        language=language if (isinstance(language, str) and len(language) > 0) else None,
+        model=model,
+        language=language,
         formats=formats,
         timestamps=timestamps,
     )
