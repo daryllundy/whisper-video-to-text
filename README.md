@@ -1,23 +1,28 @@
-# Whisper Video ► Text
+# Whisper Video to Text
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
-[![GitLab Mirror](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)
 [![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml)
 
-Convert local media files or YouTube videos to accurate, timestamped text using OpenAI Whisper locally.
+Local-first transcription for media files and YouTube videos using OpenAI Whisper — no API keys, no uploads, runs entirely on your machine.
 
-## 🎥 Demo
+## Why
 
-Check out the CLI in action: [demo.cast](demo.cast) (view with `asciinema play demo.cast`)
+I needed reliable transcripts from videos, voice notes, and downloaded talks without sending audio to a cloud service. The first version was a script. This version wraps that pipeline in a proper CLI and web UI, with ffmpeg normalization, subtitle export, Docker support, and CI-backed tests — the difference between a script and a project I'd put on a resume.
 
-## ⚡ Quick Start
+## Features
 
-### Installation
+- **Local inference** — Whisper runs on your hardware; nothing leaves the machine.
+- **Multiple inputs** — local files (`.mp3 .wav .aif .aiff .mp4 .mov`) or YouTube URLs via `yt-dlp`.
+- **Multiple output formats** — plain text, timestamped text, SRT subtitles, WebVTT subtitles.
+- **Shared pipeline** — CLI and web UI call the same `run_transcription()` function; no duplicated logic.
+- **Progress streaming** — web UI streams live status via Server-Sent Events.
+- **Docker** — single image for CLI or web, with volume mounts for transcripts and model cache.
 
-We recommend using [uv](https://github.com/astral-sh/uv) for fast, reliable Python management.
+## Install
 
-**Using uv (Recommended)**
+Requires `ffmpeg` on your system PATH.
+
 ```bash
 git clone https://github.com/daryllundy/whisper-video-to-text.git
 cd whisper-video-to-text
@@ -25,77 +30,100 @@ uv venv && source .venv/bin/activate
 uv pip install -e .
 ```
 
-**Using pip**
+## CLI Usage
+
 ```bash
-pip install .
-```
-
-*Note: Requires `ffmpeg` installed on your system.*
-
-### Usage
-
-**Transcribe a local media file**
-```bash
+# Transcribe a local file (outputs .txt by default)
 whisper_video_to_text video.mp4
-whisper_video_to_text audio.wav
-```
 
-**Download & Transcribe YouTube**
-```bash
+# Download from YouTube and transcribe
 whisper_video_to_text "https://youtube.com/watch?v=..." --download
+
+# Export SRT and VTT subtitles with a larger model
+whisper_video_to_text talk.mp4 --format srt --format vtt --model medium
+
+# Include timestamps in plain text output
+whisper_video_to_text audio.wav --timestamps
 ```
 
-The downloader prefers a single-file MP4 stream before trying separate video/audio
-streams. This improves compatibility with current YouTube responses where some
-adaptive formats may be listed by `yt-dlp` but fail with HTTP 403 during download.
+| Flag | Description |
+|------|-------------|
+| `--model` | Whisper model: `tiny` `base` `small` `medium` `large` (default: `base`) |
+| `--language` | Language code, e.g. `en`, `es`, `fr` |
+| `--format` | Output format(s): `txt` `srt` `vtt` — repeatable |
+| `--timestamps` | Prefix each segment with its start time |
+| `--download` | Download from URL via `yt-dlp` before transcribing |
+| `--keep-audio` | Keep the intermediate WAV file |
+| `--output` | Override the output base path |
 
-## 🛠 CLI Options
-
-| Flag | Description | Example |
-|------|-------------|---------|
-| `--model` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large`) | `--model medium` |
-| `--language` | Spoken language code | `--language en` |
-| `--format` | Output format (`txt`, `srt`, `vtt`) | `--format srt` |
-| `--timestamps` | Include timestamps in text output | `--timestamps` |
-| `--output` | Custom output path | `--output transcript.txt` |
-| `--download` | Download video from URL | `URL --download` |
-
-Supported local media formats: `.mp3`, `.wav`, `.aif`, `.aiff`, `.mp4`, `.mov`.
-
-## 🌐 Web Interface
-
-Includes a modern FastAPI web UI.
-
-![Web Interface](docs/images/web-ui-main.png)
+## Web UI
 
 ```bash
-# Install web dependencies
-uv pip install .[web]
-
-# Run server
+uv pip install -e .[web]
 uv run python -m whisper_video_to_text.web.main
+# → http://localhost:8000
 ```
-Visit http://localhost:8000.
 
-## 🐳 Docker
+![Web interface](docs/images/web-ui-main.png)
+![Completed transcription](docs/images/web-ui-result.png)
 
-**Run CLI**
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Local file or URL"] --> B["download.py\n(yt-dlp, optional)"]
+    B --> C["convert.py\n(ffmpeg → 16 kHz\nmono PCM WAV)"]
+    C --> D["transcribe.py\n(Whisper model)"]
+    D --> E["render_txt / render_srt\n/ render_vtt"]
+    E --> F["CLI output files\nor web downloads"]
+```
+
+`pipeline.py` composes the four steps into a single `run_transcription(request, progress)` call. Both `cli.py` and `web/views.py` use it — there is no separate transcription logic in the web layer. The web layer adds FastAPI routing, file upload handling, SSE progress streaming (`web/progress.py`), and Jinja2 rendering.
+
+`render_srt`, `render_vtt`, and `render_txt` in `transcribe.py` return strings; `save_srt` and `save_vtt` write those strings to disk. The render functions are pure and testable without a filesystem.
+
+## Design Decisions
+
+**Local inference only.** Whisper runs on the host machine. No API keys, no audio leaves the environment. Everything else follows from this.
+
+**ffmpeg for normalization.** Whisper works best on 16 kHz mono PCM audio. ffmpeg converts any supported input into consistent WAV before transcription rather than handling codec variants in Python. `ffmpeg-python` is an optional dependency used only for the progress-bar duration probe — its absence is handled gracefully.
+
+**Progressive MP4 before adaptive.** `yt-dlp` tries a single-file MP4 stream first, then falls back to separate video/audio streams. This ordering avoids HTTP 403 errors that adaptive streams sometimes produce on current YouTube responses.
+
+**In-memory job state.** `web/progress.py` stores job progress in a dict backed by asyncio queues. For a local single-process tool this is simple and correct. A multi-worker deployment would need Redis or a database backend — this is documented at the top of `progress.py` and in [Limitations](#limitations).
+
+## Development
+
 ```bash
+uv pip install -e .[dev,web]
+
+make lint        # ruff + black check
+make format      # ruff --fix + black
+make typecheck   # mypy whisper_video_to_text
+make test        # pytest -v
+
+pytest tests/test_pipeline.py -v   # pipeline tests only
+```
+
+CI runs lint → mypy → tests (Python 3.9 and 3.12 matrix) → Docker build. Tests mock ffmpeg, yt-dlp, and Whisper — no network or large files required.
+
+## Docker
+
+```bash
+# CLI
 docker build -t whisper-v2t .
 docker run --rm -v "$PWD:/workspace" whisper-v2t /workspace/audio.wav
+
+# Web UI
+docker compose up -d
+# → http://localhost:8000
 ```
 
-**Run Web UI**
-```bash
-docker-compose up -d
-```
+Named volumes keep transcripts and the Whisper model cache across container restarts.
 
-## 💻 Development
+## Limitations
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-```bash
-make test        # Run tests
-make lint        # Run linter
-make typecheck   # Run mypy
-```
+- **Single-process web UI.** The in-memory job store doesn't survive restarts or scale across workers. Suitable for local use; needs Redis or a database backend for anything beyond that.
+- **System ffmpeg required.** ffmpeg must be on the host PATH. Vendoring it would add substantial per-platform maintenance overhead.
+- **YouTube availability.** URL downloads depend on `yt-dlp` and current YouTube format availability. The format fallback handles common cases but cannot guarantee every URL will work.
+- **Transcription accuracy.** Whisper quality varies by model size, audio quality, and language. The `large` model is most accurate but requires significantly more memory and time.
