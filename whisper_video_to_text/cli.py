@@ -14,7 +14,7 @@ from whisper_video_to_text.transcribe import (
 )
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Convert media files to Whisper-ready audio and transcribe to text",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -83,7 +83,7 @@ Available Whisper models:
 
     # Setup logging
     log_level = logging.INFO if args.verbose else logging.WARNING
-    handlers = [logging.StreamHandler(sys.stdout)]
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if args.logfile:
         handlers.append(logging.FileHandler(args.logfile, mode="a", encoding="utf-8"))
     logging.basicConfig(

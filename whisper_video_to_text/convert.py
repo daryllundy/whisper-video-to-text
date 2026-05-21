@@ -11,7 +11,7 @@ try:
 
     HAS_FFMPEG_PYTHON = True
 except ImportError:
-    ffmpeg = None  # type: ignore[assignment]
+    ffmpeg = None
     HAS_FFMPEG_PYTHON = False
     logging.debug("ffmpeg-python not installed; video duration detection disabled")
 
@@ -38,16 +38,17 @@ def _run_ffmpeg(cmd: list[str], duration: Optional[float]) -> None:
         process = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
         pbar = tqdm(total=duration, unit="sec", desc="ffmpeg", leave=True)
         last_time = 0.0
-        for line in process.stderr:
-            if "time=" in line:
-                try:
-                    time_str = line.split("time=")[-1].split(" ")[0]
-                    h, m, s = [float(x) for x in time_str.split(":")]
-                    seconds = h * 3600 + m * 60 + s
-                    pbar.update(max(0, seconds - last_time))
-                    last_time = seconds
-                except Exception:
-                    pass
+        if process.stderr:
+            for line in process.stderr:
+                if "time=" in line:
+                    try:
+                        time_str = line.split("time=")[-1].split(" ")[0]
+                        h, m, s = [float(x) for x in time_str.split(":")]
+                        seconds = h * 3600 + m * 60 + s
+                        pbar.update(max(0, seconds - last_time))
+                        last_time = seconds
+                    except Exception:
+                        pass
         process.wait()
         pbar.close()
         if process.returncode != 0:
