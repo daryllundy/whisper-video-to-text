@@ -4,17 +4,10 @@ import sys
 import time
 from pathlib import Path
 
-from whisper_video_to_text.convert import convert_media_to_whisper_audio
-from whisper_video_to_text.download import download_video
-from whisper_video_to_text.transcribe import (
-    save_srt,
-    save_transcription,
-    save_vtt,
-    transcribe_audio,
-)
+from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Convert media files to Whisper-ready audio and transcribe to text",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -81,9 +74,8 @@ Available Whisper models:
 
     args = parser.parse_args()
 
-    # Setup logging
     log_level = logging.INFO if args.verbose else logging.WARNING
-    handlers = [logging.StreamHandler(sys.stdout)]
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
     if args.logfile:
         handlers.append(logging.FileHandler(args.logfile, mode="a", encoding="utf-8"))
     logging.basicConfig(
@@ -91,46 +83,27 @@ Available Whisper models:
     )
 
     try:
-        # Handle media download if needed
-        if args.download:
-            media_file = download_video(args.input)
-        else:
-            media_file = args.input
-
-        # Convert supported media to Whisper-ready WAV
-        video_path = Path(media_file)
-        audio_file = convert_media_to_whisper_audio(media_file, verbose=args.verbose)
-
-        # Transcribe audio
-        transcription = transcribe_audio(
-            str(audio_file), model_name=args.model, language=args.language, verbose=args.verbose
-        )
-
-        # Determine output base filename
+        timestamp = int(time.time())
         if args.output:
-            base = Path(args.output).with_suffix("")
+            output_base = Path(args.output).with_suffix("")
+        elif args.download:
+            # Downloaded filename isn't known until after yt-dlp runs; use cwd + timestamp.
+            output_base = Path.cwd() / f"transcript-{timestamp}"
         else:
-            # Save in the same directory as the media file with timestamped name
-            output_dir = video_path.parent
-            timestamp = int(time.time())  # Unix epoch seconds
-            base = output_dir / f"{video_path.stem}-transcript-{timestamp}"
+            video_path = Path(args.input)
+            output_base = video_path.parent / f"{video_path.stem}-transcript-{timestamp}"
 
-        formats = args.format if args.format else ["txt"]
-        for fmt in set(formats):
-            if fmt == "txt":
-                save_transcription(
-                    transcription, str(base.with_suffix(".txt")), include_timestamps=args.timestamps
-                )
-            elif fmt == "srt":
-                save_srt(transcription, str(base.with_suffix(".srt")))
-            elif fmt == "vtt":
-                save_vtt(transcription, str(base.with_suffix(".vtt")))
-
-        # Clean up audio file if requested
-        if not args.keep_audio and audio_file.exists():
-            audio_file.unlink()
-            logging.info(f"✓ Removed temporary audio file: {audio_file}")
-
+        request = TranscriptionRequest(
+            source=args.input,
+            download=args.download,
+            model=args.model,
+            language=args.language,
+            formats=tuple(set(args.format or ["txt"])),
+            include_timestamps=args.timestamps,
+            keep_audio=args.keep_audio,
+            output_base=output_base,
+        )
+        run_transcription(request)
         logging.info("✅ Process complete! Output(s) ready for LLM analysis.")
 
     except KeyboardInterrupt:

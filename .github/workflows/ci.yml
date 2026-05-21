@@ -39,6 +39,7 @@ jobs:
         run: |
           uv run ruff check .
           uv run black --check .
+          uv run mypy whisper_video_to_text
 
   test:
     runs-on: ubuntu-latest

@@ -77,45 +77,51 @@ def save_transcription(
     logging.info(f"✓ Transcription saved to: {output_path}")
 
 
-def save_srt(transcription: dict[str, Any], output_file: str) -> None:
-    """
-    Save transcription to SRT subtitle file.
+def render_txt(transcription: dict[str, Any], include_timestamps: bool = False) -> str:
+    """Return plain-text transcription, optionally prefixed with segment timestamps."""
+    if include_timestamps and transcription.get("segments"):
+        lines = []
+        for seg in transcription["segments"]:
+            start = seg["start"]
+            text = seg["text"].strip()
+            lines.append(f"[{start:.2f}s] {text}")
+        return "\n".join(lines)
+    return transcription.get("text", "").strip()
 
-    Args:
-        transcription: The transcription result.
-        output_file: Path to the output SRT file.
-    """
+
+def render_srt(transcription: dict[str, Any]) -> str:
+    """Return SRT-formatted subtitle string."""
+    lines: list[str] = []
+    for i, seg in enumerate(transcription.get("segments", []), 1):
+        start = seg["start"]
+        end = seg["end"]
+        text = seg["text"].strip()
+        lines += [str(i), f"{_format_srt_time(start)} --> {_format_srt_time(end)}", text, ""]
+    return "\n".join(lines)
+
+
+def render_vtt(transcription: dict[str, Any]) -> str:
+    """Return WebVTT-formatted subtitle string."""
+    lines = ["WEBVTT", ""]
+    for seg in transcription.get("segments", []):
+        start = seg["start"]
+        end = seg["end"]
+        text = seg["text"].strip()
+        lines += [f"{_format_vtt_time(start)} --> {_format_vtt_time(end)}", text, ""]
+    return "\n".join(lines)
+
+
+def save_srt(transcription: dict[str, Any], output_file: str) -> None:
     output_path = Path(output_file)
-    segments = transcription.get("segments", [])
     with open(output_path, "w", encoding="utf-8") as f:
-        for idx, segment in enumerate(segments, 1):
-            start = segment["start"]
-            end = segment["end"]
-            text = segment["text"].strip()
-            f.write(f"{idx}\n")
-            f.write(f"{_format_srt_time(start)} --> {_format_srt_time(end)}\n")
-            f.write(f"{text}\n\n")
+        f.write(render_srt(transcription))
     logging.info(f"✓ SRT saved to: {output_path}")
 
 
 def save_vtt(transcription: dict[str, Any], output_file: str) -> None:
-    """
-    Save transcription to VTT subtitle file.
-
-    Args:
-        transcription: The transcription result.
-        output_file: Path to the output VTT file.
-    """
     output_path = Path(output_file)
-    segments = transcription.get("segments", [])
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write("WEBVTT\n\n")
-        for segment in segments:
-            start = segment["start"]
-            end = segment["end"]
-            text = segment["text"].strip()
-            f.write(f"{_format_vtt_time(start)} --> {_format_vtt_time(end)}\n")
-            f.write(f"{text}\n\n")
+        f.write(render_vtt(transcription))
     logging.info(f"✓ VTT saved to: {output_path}")
 
 

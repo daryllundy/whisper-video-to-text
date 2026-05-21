@@ -49,33 +49,27 @@ def test_format_fallback_to_txt():
     assert formats == ["srt"]
 
 
-def test_cli_uses_whisper_wav_converter(monkeypatch, tmp_path):
-    """Verify CLI normalizes supported media through the Whisper WAV converter."""
+def test_cli_delegates_to_pipeline(monkeypatch, tmp_path):
+    """CLI builds a TranscriptionRequest from args and delegates to run_transcription."""
+    from whisper_video_to_text.pipeline import TranscriptionResult
+
     input_file = tmp_path / "input.mov"
     input_file.write_text("dummy")
-    audio_file = tmp_path / "input.wav"
-    calls = {}
+    captured: dict = {}
 
-    def fake_convert_media_to_whisper_audio(input_path, output_file=None, verbose=False):
-        calls["converter"] = (input_path, output_file, verbose)
-        return audio_file
+    def fake_run_transcription(request, progress=None):
+        captured["request"] = request
+        return TranscriptionResult(text="", language=None, segments=[], rendered={})
 
     monkeypatch.setattr(sys, "argv", ["whisper_video_to_text", str(input_file)])
-    monkeypatch.setattr(cli, "convert_media_to_whisper_audio", fake_convert_media_to_whisper_audio)
-    monkeypatch.setattr(
-        cli,
-        "transcribe_audio",
-        lambda audio_path, model_name, language, verbose: {
-            "text": "hello",
-            "segments": [{"start": 0.0, "end": 1.0, "text": "hello"}],
-            "language": "en",
-        },
-    )
-    monkeypatch.setattr(cli, "save_transcription", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli, "run_transcription", fake_run_transcription)
 
     cli.main()
 
-    assert calls["converter"] == (str(input_file), None, False)
+    req = captured["request"]
+    assert req.source == str(input_file)
+    assert req.download is False
+    assert "txt" in req.formats
 
 
 def test_cli_help_mentions_supported_media_formats():

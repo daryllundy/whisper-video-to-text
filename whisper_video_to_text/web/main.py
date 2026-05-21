@@ -11,16 +11,31 @@ from whisper_video_to_text.web.views import router as web_router
 
 # Get the directory where this file is located
 BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
 
 app = FastAPI(title="Whisper Video to Text Web")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+def _asset_version() -> int:
+    """Return a static asset version for cache-busting browser CSS/JS."""
+    asset_paths = [
+        STATIC_DIR / "nord-theme.css",
+        STATIC_DIR / "style.css",
+        STATIC_DIR / "app.js",
+    ]
+    return int(max(path.stat().st_mtime for path in asset_paths if path.exists()))
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     """Render the main web interface."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {"asset_version": _asset_version()},
+    )
 
 
 app.include_router(web_router)

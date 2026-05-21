@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import shutil
-import tempfile
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -12,11 +12,8 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from whisper_video_to_text.convert import convert_media_to_whisper_audio
-from whisper_video_to_text.download import download_video
-from whisper_video_to_text.transcribe import (
-    transcribe_audio,
-)
+from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
+from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 from whisper_video_to_text.web.progress import (
     create_job,
     get_job,
@@ -39,7 +36,7 @@ async def events(job_id: str) -> StreamingResponse:
     if not job:
         return JSONResponse({"error": "Job not found"}, status_code=404)  # type: ignore[return-value]
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         async for update in progress_stream(job_id):
             yield f"data: {json.dumps(update)}\n\n"
 
@@ -128,115 +125,55 @@ def run_transcription_task(
     if formats is None:
         formats = ["txt"]
 
-    tempdir = tempfile.mkdtemp(prefix="wvttmp_")
     try:
-        media_path: str | None = None
-
-        # Download or save uploaded file
+        # Resolve source: save upload to disk, or pass URL directly to pipeline
         if url:
-            update_progress_sync(job_id, 10, "downloading", "Downloading video...")
-            media_path = download_video(url, output_dir=tempdir)
+            source = url
+            download = True
+            update_progress_sync(job_id, 5, "starting", "Starting download...")
         elif file:
-            update_progress_sync(job_id, 10, "uploading", "Saving uploaded file...")
-            # Save uploaded file to uploads directory
-            safe_filename = Path(file.filename or "upload").name
-            dest = os.path.join("uploads", safe_filename)
+            suffix = Path(file.filename or "").suffix.lower()
+            if suffix not in SUPPORTED_MEDIA_EXTENSIONS:
+                supported = ", ".join(sorted(SUPPORTED_MEDIA_EXTENSIONS))
+                msg = f"Unsupported file type '{suffix}'. Supported: {supported}"
+                update_progress_sync(job_id, 100, "error", msg)
+                return
+            update_progress_sync(job_id, 5, "uploading", "Saving uploaded file...")
+            dest = os.path.join("uploads", f"{job_id}{suffix}")
             with open(dest, "wb") as f_out:
                 shutil.copyfileobj(file.file, f_out)
-            media_path = dest
+            source = dest
+            download = False
         else:
             update_progress_sync(job_id, 100, "error", "No file or URL provided")
             return
 
-        update_progress_sync(job_id, 30, "converting", "Extracting audio...")
-        audio_output = Path(tempdir) / f"{Path(media_path).stem}-whisper.wav"
-        audio_path = convert_media_to_whisper_audio(
-            media_path, output_file=str(audio_output), verbose=False
+        request = TranscriptionRequest(
+            source=source,
+            download=download,
+            model=model,
+            language=language,
+            formats=tuple(formats),
+            include_timestamps=timestamps,
+            output_base=Path("transcripts") / job_id,
+        )
+        result = run_transcription(
+            request,
+            progress=lambda pct, status, msg: update_progress_sync(job_id, pct, status, msg),
         )
 
-        update_progress_sync(job_id, 60, "transcribing", "Transcribing audio...")
-        result = transcribe_audio(
-            str(audio_path), model_name=model, language=language, verbose=False
+        set_result_sync(
+            job_id,
+            {
+                "text": result.text,
+                "language": result.language,
+                "formats": result.rendered,
+            },
         )
-
-        update_progress_sync(job_id, 90, "saving", "Preparing output...")
-
-        # Build response with requested formats
-        output: dict[str, Any] = {
-            "text": result.get("text", ""),
-            "language": result.get("language"),
-            "formats": {},
-        }
-
-        # Generate outputs based on requested formats
-        if "txt" in formats:
-            if timestamps and result.get("segments"):
-                # Include timestamps in text output
-                lines = []
-                for seg in result["segments"]:
-                    start = seg.get("start", 0)
-                    text = seg.get("text", "").strip()
-                    lines.append(f"[{start:.2f}s] {text}")
-                output["formats"]["txt"] = "\n".join(lines)
-            else:
-                output["formats"]["txt"] = result.get("text", "")
-
-        if "srt" in formats:
-            # Generate SRT content
-            srt_lines = []
-            for i, seg in enumerate(result.get("segments", []), 1):
-                start = seg.get("start", 0)
-                end = seg.get("end", 0)
-                text = seg.get("text", "").strip()
-                srt_lines.append(str(i))
-                srt_lines.append(f"{_format_srt_time(start)} --> {_format_srt_time(end)}")
-                srt_lines.append(text)
-                srt_lines.append("")
-            output["formats"]["srt"] = "\n".join(srt_lines)
-
-        if "vtt" in formats:
-            # Generate VTT content
-            vtt_lines = ["WEBVTT", ""]
-            for seg in result.get("segments", []):
-                start = seg.get("start", 0)
-                end = seg.get("end", 0)
-                text = seg.get("text", "").strip()
-                vtt_lines.append(f"{_format_vtt_time(start)} --> {_format_vtt_time(end)}")
-                vtt_lines.append(text)
-                vtt_lines.append("")
-            output["formats"]["vtt"] = "\n".join(vtt_lines)
-
-        # Save files to transcripts directory
-        for fmt, content in output["formats"].items():
-            file_path = os.path.join("transcripts", f"{job_id}.{fmt}")
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-        set_result_sync(job_id, output)
 
     except Exception as e:
         logging.exception(f"Transcription error for job {job_id}: {e}")
         update_progress_sync(job_id, 100, "error", f"Error: {e}")
-    finally:
-        shutil.rmtree(tempdir, ignore_errors=True)
-
-
-def _format_srt_time(seconds: float) -> str:
-    """Format seconds as SRT timestamp (HH:MM:SS,mmm)."""
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02}:{m:02}:{s:02},{ms:03}"
-
-
-def _format_vtt_time(seconds: float) -> str:
-    """Format seconds as VTT timestamp (HH:MM:SS.mmm)."""
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02}:{m:02}:{s:02}.{ms:03}"
 
 
 @router.post("/api/transcribe")
@@ -250,12 +187,15 @@ async def transcribe_api(
 
     # Get form data from request
     form = await request.form()
-    file = form.get("file")
-    url = form.get("url")
-    model = form.get("model", "base")
-    language = form.get("language")
-    formats_list = form.getlist("formats")
-    formats = formats_list if formats_list else ["txt"]
+    _file = form.get("file")
+    file: UploadFile | None = _file if isinstance(_file, UploadFile) else None
+    _url = form.get("url")
+    url: str | None = _url if isinstance(_url, str) else None
+    _model = form.get("model", "base")
+    model: str = _model if isinstance(_model, str) else "base"
+    _language = form.get("language")
+    language: str | None = _language if isinstance(_language, str) and _language else None
+    formats: list[str] = [f for f in form.getlist("formats") if isinstance(f, str)] or ["txt"]
     timestamps = str(form.get("timestamps", "false")).lower() == "true"
 
     # Start background task with user input
@@ -264,8 +204,8 @@ async def transcribe_api(
         job_id,
         file=file,
         url=url,
-        model=model if isinstance(model, str) else "base",
-        language=language if (isinstance(language, str) and len(language) > 0) else None,
+        model=model,
+        language=language,
         formats=formats,
         timestamps=timestamps,
     )

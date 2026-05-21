@@ -12,8 +12,8 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
 
-  <link rel="stylesheet" href="/static/nord-theme.css" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/nord-theme.css?v={{ asset_version }}" />
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_version }}" />
 
   <script>
     (function () {
@@ -24,7 +24,7 @@
     })();
   </script>
 
-  <script defer src="/static/app.js"></script>
+  <script defer src="/static/app.js?v={{ asset_version }}"></script>
 </head>
 
 <body>

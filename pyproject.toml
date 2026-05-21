@@ -1,9 +1,9 @@
 [project]
 name = "whisper-video-to-text"
 version = "0.1.0"
-description = "Convert MP4 video files to text using Whisper, with support for YouTube downloads and audio extraction."
+description = "Local-first media transcription with Whisper, ffmpeg normalization, YouTube downloads, and TXT/SRT/VTT output."
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Daryl Lundy", email = "daryl.lundy@gmail.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -34,9 +34,8 @@ dev = [
     "ruff>=0.4",
 ]
 
-[tool.setuptools]
-packages = ["whisper_video_to_text"]
-include-package-data = true
+[tool.setuptools.packages.find]
+include = ["whisper_video_to_text*"]
 
 [tool.setuptools.package-data]
 whisper_video_to_text = ["web/templates/*.html", "web/static/*.js", "web/static/*.css"]

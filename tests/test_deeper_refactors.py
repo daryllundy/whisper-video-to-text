@@ -63,31 +63,36 @@ class TestSyncAsyncCleanup:
 class TestFormatsTimestampsImplementation:
     """Test that formats and timestamps params are actually implemented."""
 
-    def test_run_transcription_task_uses_formats_param(self):
-        """Verify formats parameter is used in the function."""
-        import pathlib
+    def test_pipeline_renders_srt_and_vtt_when_requested(self):
+        """Pipeline renders SRT and VTT content when those formats are in the request."""
+        from whisper_video_to_text.transcribe import render_srt, render_vtt
 
-        views_path = (
-            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
-        )
-        source = views_path.read_text()
+        transcription = {
+            "text": "Hello",
+            "segments": [{"start": 0.0, "end": 1.0, "text": " Hello"}],
+            "language": "en",
+        }
+        srt = render_srt(transcription)
+        assert "00:00:00,000 --> 00:00:01,000" in srt
 
-        # Check that formats are processed
-        assert '"srt" in formats' in source or "'srt' in formats" in source
-        assert '"vtt" in formats' in source or "'vtt' in formats" in source
+        vtt = render_vtt(transcription)
+        assert "WEBVTT" in vtt
+        assert "00:00:00.000 --> 00:00:01.000" in vtt
 
-    def test_run_transcription_task_uses_timestamps_param(self):
-        """Verify timestamps parameter is used in the function."""
-        import pathlib
+    def test_render_txt_respects_timestamps_flag(self):
+        """render_txt produces timestamped output when include_timestamps=True."""
+        from whisper_video_to_text.transcribe import render_txt
 
-        views_path = (
-            pathlib.Path(__file__).parent.parent / "whisper_video_to_text" / "web" / "views.py"
-        )
-        source = views_path.read_text()
+        transcription = {
+            "text": "Hello world",
+            "segments": [{"start": 1.5, "end": 3.0, "text": " Hello world"}],
+        }
+        plain = render_txt(transcription, include_timestamps=False)
+        assert plain == "Hello world"
 
-        assert "timestamps" in source
-        # Should check timestamps condition
-        assert "if timestamps" in source
+        stamped = render_txt(transcription, include_timestamps=True)
+        assert "[1.50s]" in stamped
+        assert "Hello world" in stamped
 
     def test_format_time_functions_exist_in_transcribe(self):
         """Verify SRT/VTT time formatting functions exist in transcribe module."""
