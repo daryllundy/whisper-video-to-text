@@ -2,6 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
+[![GitLab Mirror](https://img.shields.io/badge/GitLab-Mirror-FCA121?logo=gitlab)](https://gitlab.com/daryllundy/whisper-video-to-text)
 [![CI](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml/badge.svg)](https://github.com/daryllundy/whisper-video-to-text/actions/workflows/ci.yml)
 
 Local-first transcription for media files and YouTube videos using OpenAI Whisper — no API keys, no uploads, runs entirely on your machine.
