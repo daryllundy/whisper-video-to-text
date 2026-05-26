@@ -58,7 +58,9 @@ def test_pipeline_uses_whisper_wav_converter(monkeypatch, tmp_path):
 
     converter_calls: list[str] = []
 
-    def fake_convert(input_path: str, output_file: str | None = None, verbose: bool = False, **kwargs):
+    def fake_convert(
+        input_path: str, output_file: str | None = None, verbose: bool = False, **kwargs
+    ):
         converter_calls.append(input_path)
         return audio_file
 

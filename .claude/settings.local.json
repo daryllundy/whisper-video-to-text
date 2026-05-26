@@ -16,7 +16,9 @@
       "Bash(uv run *)",
       "Bash(git stash *)",
       "Bash(cp whisper_video_to_text/convert.py /tmp/convert_now.py)",
-      "Bash(cp /tmp/convert_main.py whisper_video_to_text/convert.py)"
+      "Bash(cp /tmp/convert_main.py whisper_video_to_text/convert.py)",
+      "Bash(make lint *)",
+      "Bash(make typecheck *)"
     ],
     "deny": []
   }
