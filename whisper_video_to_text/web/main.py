@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from whisper_video_to_text.convert import supported_media_accept_attribute
 from whisper_video_to_text.web.views import router as web_router
 
 # Get the directory where this file is located
@@ -34,7 +35,10 @@ async def index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"asset_version": _asset_version()},
+        {
+            "asset_version": _asset_version(),
+            "media_accept": supported_media_accept_attribute(),
+        },
     )
 
 

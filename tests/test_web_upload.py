@@ -6,6 +6,8 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
+
 
 def _make_upload_file(filename: str) -> MagicMock:
     mock = MagicMock()
@@ -42,13 +44,13 @@ def _run_task(job_id: str, file=None, url: str | None = None, formats=None, tmp_
 
 def test_upload_rejects_unsupported_extension(tmp_path):
     """Files with unsupported extensions are rejected before any disk write."""
-    upload = _make_upload_file("video.avi")
+    upload = _make_upload_file("notes.txt")
     events = _run_task("job-bad-ext", file=upload, tmp_path=tmp_path)
 
     statuses = [e[1] for e in events]
     assert "error" in statuses
     error_msg = next(e[2] for e in events if e[1] == "error")
-    assert ".avi" in error_msg
+    assert ".txt" in error_msg
     assert "Supported" in error_msg
 
 
@@ -99,7 +101,7 @@ def test_upload_supported_extensions_accepted(tmp_path, monkeypatch):
     (tmp_path / "uploads").mkdir()
     (tmp_path / "transcripts").mkdir()
 
-    for ext in [".mp3", ".wav", ".mp4", ".mov", ".aif", ".aiff"]:
+    for ext in sorted(SUPPORTED_MEDIA_EXTENSIONS):
         upload = _make_upload_file(f"file{ext}")
 
         with (

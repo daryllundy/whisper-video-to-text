@@ -13,7 +13,10 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from starlette.datastructures import UploadFile
 
-from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
+from whisper_video_to_text.convert import (
+    SUPPORTED_MEDIA_EXTENSIONS,
+    supported_media_extensions_display,
+)
 from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 from whisper_video_to_text.web.progress import (
     create_job,
@@ -135,8 +138,10 @@ def run_transcription_task(
         elif file:
             suffix = Path(file.filename or "").suffix.lower()
             if suffix not in SUPPORTED_MEDIA_EXTENSIONS:
-                supported = ", ".join(sorted(SUPPORTED_MEDIA_EXTENSIONS))
-                msg = f"Unsupported file type '{suffix}'. Supported: {supported}"
+                msg = (
+                    f"Unsupported file type '{suffix}'. "
+                    f"Supported: {supported_media_extensions_display()}"
+                )
                 update_progress_sync(job_id, 100, "error", msg)
                 return
             update_progress_sync(job_id, 5, "uploading", "Saving uploaded file...")

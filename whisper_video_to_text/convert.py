@@ -16,8 +16,81 @@ except ImportError:
     logging.debug("ffmpeg-python not installed; video duration detection disabled")
 
 
-SUPPORTED_MEDIA_EXTENSIONS = {".mp3", ".wav", ".aif", ".aiff", ".mp4", ".mov"}
+SUPPORTED_AUDIO_EXTENSIONS: tuple[str, ...] = (
+    ".mp3",
+    ".m4a",
+    ".m4b",
+    ".m4p",
+    ".wav",
+    ".aif",
+    ".aiff",
+    ".aac",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".wma",
+    ".amr",
+    ".mka",
+)
+SUPPORTED_VIDEO_EXTENSIONS: tuple[str, ...] = (
+    ".mp4",
+    ".m4v",
+    ".mov",
+    ".webm",
+    ".mkv",
+    ".avi",
+    ".wmv",
+    ".flv",
+    ".mpeg",
+    ".mpg",
+    ".3gp",
+    ".3g2",
+)
+SUPPORTED_MEDIA_EXTENSIONS = frozenset((*SUPPORTED_AUDIO_EXTENSIONS, *SUPPORTED_VIDEO_EXTENSIONS))
+SUPPORTED_MEDIA_MIME_TYPES: tuple[str, ...] = (
+    "audio/*",
+    "video/*",
+    "audio/aac",
+    "audio/aiff",
+    "audio/amr",
+    "audio/flac",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/opus",
+    "audio/wav",
+    "audio/x-m4a",
+    "audio/x-matroska",
+    "audio/x-ms-wma",
+    "video/3gpp",
+    "video/3gpp2",
+    "video/mp4",
+    "video/mpeg",
+    "video/quicktime",
+    "video/webm",
+    "video/x-flv",
+    "video/x-m4v",
+    "video/x-matroska",
+    "video/x-ms-wmv",
+    "video/x-msvideo",
+)
 WHISPER_AUDIO_SUFFIX = ".wav"
+
+
+def supported_media_extensions_display(with_dots: bool = True) -> str:
+    """Return supported media extensions in a stable, user-facing order."""
+    extensions = SUPPORTED_AUDIO_EXTENSIONS + SUPPORTED_VIDEO_EXTENSIONS
+    if with_dots:
+        return ", ".join(extensions)
+    return ", ".join(extension.lstrip(".") for extension in extensions)
+
+
+def supported_media_accept_attribute() -> str:
+    """Return the browser accept attribute for supported media uploads."""
+    return ",".join(
+        (*SUPPORTED_AUDIO_EXTENSIONS, *SUPPORTED_VIDEO_EXTENSIONS, *SUPPORTED_MEDIA_MIME_TYPES)
+    )
 
 
 def _get_media_duration(input_path: Path) -> Optional[float]:
@@ -88,9 +161,9 @@ def convert_media_to_whisper_audio(
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
     if input_path.suffix.lower() not in SUPPORTED_MEDIA_EXTENSIONS:
-        supported = ", ".join(sorted(SUPPORTED_MEDIA_EXTENSIONS))
         raise ValueError(
-            f"Unsupported media format '{input_path.suffix}'. Supported formats: {supported}"
+            "Unsupported media format "
+            f"'{input_path.suffix}'. Supported formats: {supported_media_extensions_display()}"
         )
 
     if output_file is None:

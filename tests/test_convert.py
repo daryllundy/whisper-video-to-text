@@ -6,7 +6,7 @@ import pytest
 from whisper_video_to_text import convert
 
 
-@pytest.mark.parametrize("suffix", [".mp3", ".wav", ".aif", ".aiff", ".mp4", ".mov"])
+@pytest.mark.parametrize("suffix", sorted(convert.SUPPORTED_MEDIA_EXTENSIONS))
 def test_convert_media_to_whisper_audio_supported_formats(tmp_path, suffix):
     input_file = tmp_path / f"input{suffix}"
     input_file.write_text("dummy")
@@ -19,6 +19,12 @@ def test_convert_media_to_whisper_audio_supported_formats(tmp_path, suffix):
 
     assert result == output_file
     mock_run.assert_called_once()
+
+
+def test_requested_media_formats_are_supported():
+    required_extensions = {".mp3", ".m4a", ".m4p", ".mp4", ".mov"}
+
+    assert required_extensions.issubset(convert.SUPPORTED_MEDIA_EXTENSIONS)
 
 
 def test_convert_media_to_whisper_audio_ffmpeg_command(tmp_path):
@@ -46,7 +52,7 @@ def test_convert_media_to_whisper_audio_missing_file(tmp_path):
 
 
 def test_convert_media_to_whisper_audio_unsupported_format(tmp_path):
-    input_file = tmp_path / "input.flac"
+    input_file = tmp_path / "input.txt"
     input_file.write_text("dummy")
 
     with pytest.raises(ValueError, match="Unsupported media format"):

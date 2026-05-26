@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from pathlib import Path
+from fastapi.testclient import TestClient
 
-ROOT = Path(__file__).parent.parent
+from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
+from whisper_video_to_text.web.main import app
 
 
 def test_web_upload_accepts_supported_media_formats():
-    template = ROOT / "whisper_video_to_text" / "web" / "templates" / "index.html"
-    source = template.read_text(encoding="utf-8")
+    response = TestClient(app).get("/")
+    source = response.text
 
+    assert response.status_code == 200
     assert "SOURCE MEDIA FILE" in source
-    for extension in [".mp3", ".wav", ".aif", ".aiff", ".mp4", ".mov"]:
+    for extension in sorted(SUPPORTED_MEDIA_EXTENSIONS):
         assert extension in source
+    assert "audio/*" in source
+    assert "video/*" in source
     assert "audio/mpeg" in source
     assert "video/quicktime" in source
 
