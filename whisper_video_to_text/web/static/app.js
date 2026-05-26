@@ -95,6 +95,166 @@ function clearError() {
   el.hidden = true;
 }
 
+function getFileExtension(filename) {
+  const dot = filename.lastIndexOf('.');
+  return dot >= 0 ? filename.slice(dot).toLowerCase() : '';
+}
+
+function supportedMediaExtensions() {
+  const dropZone = document.getElementById('drop-zone');
+  const raw = dropZone ? dropZone.dataset.mediaExtensions || '' : '';
+  return new Set(raw.split(',').map(ext => ext.trim().toLowerCase()).filter(Boolean));
+}
+
+function isSupportedMediaFile(file) {
+  const extension = getFileExtension(file.name || '');
+  return extension.length > 0 && supportedMediaExtensions().has(extension);
+}
+
+function setDropZoneState(state, message) {
+  const dropZone = document.getElementById('drop-zone');
+  const status = document.getElementById('drop-zone-status');
+  if (dropZone) {
+    if (state) dropZone.dataset.state = state;
+    else delete dropZone.dataset.state;
+  }
+  if (status && message) status.textContent = message;
+}
+
+function resetDropZoneState() {
+  const fileInput = document.getElementById('file');
+  const selected = fileInput && fileInput.files && fileInput.files.length > 0
+    ? fileInput.files[0]
+    : null;
+
+  if (selected) setDropZoneState('selected', selected.name);
+  else setDropZoneState('', 'OR CHOOSE FILE');
+}
+
+function clearFileInput() {
+  const fileInput = document.getElementById('file');
+  if (!fileInput) return;
+  fileInput.value = '';
+  resetDropZoneState();
+}
+
+function selectMediaFile(file) {
+  const extension = getFileExtension(file.name || '');
+  if (!isSupportedMediaFile(file)) {
+    clearFileInput();
+    setDropZoneState('error', 'UNSUPPORTED FILE');
+    showError(`Unsupported file type '${extension || 'none'}'. Choose a supported media file.`);
+    return false;
+  }
+
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+
+  const fileInput = document.getElementById('file');
+  const urlInput = document.getElementById('url');
+  if (!fileInput) return false;
+
+  fileInput.files = transfer.files;
+  if (urlInput) urlInput.value = '';
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+}
+
+function hasFileDrag(event) {
+  const types = event.dataTransfer ? Array.from(event.dataTransfer.types) : [];
+  return types.includes('Files');
+}
+
+let dragDepth = 0;
+
+function showDropOverlay() {
+  const overlay = document.getElementById('drop-overlay');
+  if (overlay) overlay.hidden = false;
+}
+
+function hideDropOverlay() {
+  const overlay = document.getElementById('drop-overlay');
+  if (overlay) overlay.hidden = true;
+}
+
+function handleDragEnter(event) {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  dragDepth += 1;
+  showDropOverlay();
+  setDropZoneState('active', 'DROP TO SELECT');
+}
+
+function handleDragOver(event) {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+  setDropZoneState('active', 'DROP TO SELECT');
+}
+
+function handleDragLeave(event) {
+  if (!hasFileDrag(event)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) {
+    hideDropOverlay();
+    resetDropZoneState();
+  }
+}
+
+function handleDrop(event) {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  dragDepth = 0;
+  hideDropOverlay();
+  clearError();
+
+  const files = Array.from(event.dataTransfer.files || []);
+  if (files.length === 0) {
+    resetDropZoneState();
+    return;
+  }
+
+  if (files.length > 1) {
+    setDropZoneState('error', 'ONE FILE ONLY');
+    showError('Drop one media file at a time.');
+    return;
+  }
+
+  selectMediaFile(files[0]);
+}
+
+function handleFileInputChange(event) {
+  clearError();
+  const file = event.target.files && event.target.files.length > 0 ? event.target.files[0] : null;
+  if (!file) {
+    resetDropZoneState();
+    return;
+  }
+
+  if (!isSupportedMediaFile(file)) {
+    const extension = getFileExtension(file.name || '');
+    event.target.value = '';
+    setDropZoneState('error', 'UNSUPPORTED FILE');
+    showError(`Unsupported file type '${extension || 'none'}'. Choose a supported media file.`);
+    return;
+  }
+
+  const urlInput = document.getElementById('url');
+  if (urlInput) urlInput.value = '';
+  setDropZoneState('selected', file.name);
+}
+
+function bindDragAndDrop() {
+  const fileInput = document.getElementById('file');
+  if (fileInput) fileInput.addEventListener('change', handleFileInputChange);
+
+  document.addEventListener('dragenter', handleDragEnter);
+  document.addEventListener('dragover', handleDragOver);
+  document.addEventListener('dragleave', handleDragLeave);
+  document.addEventListener('drop', handleDrop);
+  resetDropZoneState();
+}
+
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme');
   const target = current === 'light' ? 'dark' : 'light';
@@ -122,6 +282,11 @@ async function startJob(e) {
   const urlInput = document.getElementById('url');
   const hasFile = fileInput.files && fileInput.files.length > 0;
   const hasUrl = urlInput.value.trim().length > 0;
+
+  if (hasFile && !isSupportedMediaFile(fileInput.files[0])) {
+    showError('Choose a supported media file.');
+    return;
+  }
 
   if (!hasFile && !hasUrl) {
     showError('Choose a file or paste a URL to begin.');
@@ -291,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (themeBtn) themeBtn.textContent = current === 'light' ? 'NIGHT MODE' : 'DAY MODE';
 
   document.getElementById('form').addEventListener('submit', startJob);
+  bindDragAndDrop();
   themeBtn.addEventListener('click', toggleTheme);
   document.getElementById('history-btn').addEventListener('click', toggleHistory);
   document.getElementById('history-close').addEventListener('click', toggleHistory);

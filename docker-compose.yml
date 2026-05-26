@@ -1,10 +1,10 @@
-version: '3.8'
-
 services:
   web:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_REVISION: ${APP_REVISION:-local}
     image: whisper-video-to-text:latest
     container_name: whisper-web
     ports:
@@ -21,7 +21,16 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
+          assert ".m4a" in SUPPORTED_MEDIA_EXTENSIONS
+          body = urllib.request.urlopen("http://localhost:8000/", timeout=5).read().decode("utf-8")
+          assert 'id="drop-zone"' in body
       interval: 30s
       timeout: 10s
       retries: 3

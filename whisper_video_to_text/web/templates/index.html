@@ -48,8 +48,14 @@
       <form id="form">
         <div class="card">
           <label for="file">SOURCE MEDIA FILE</label>
-          <input id="file" name="file" type="file"
-            accept="{{ media_accept }}" />
+          <div id="drop-zone" class="drop-zone" data-media-extensions="{{ media_extensions }}">
+            <div class="drop-zone__copy">
+              <span class="drop-zone__title">DROP MEDIA FILE</span>
+              <span id="drop-zone-status" class="drop-zone__status">OR CHOOSE FILE</span>
+            </div>
+            <input id="file" name="file" type="file"
+              accept="{{ media_accept }}" aria-describedby="drop-zone-status" />
+          </div>
 
           <div class="divider-text">OR</div>
 
@@ -123,6 +129,13 @@
     </section>
 
   </main>
+
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <div class="drop-overlay__panel">
+      <div class="drop-overlay__title">DROP MEDIA FILE</div>
+      <div class="drop-overlay__meta">LOCAL TRANSCRIPTION QUEUE</div>
+    </div>
+  </div>
 
   <div id="history-modal" class="modal" hidden>
     <div class="modal__panel card">

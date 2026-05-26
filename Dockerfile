@@ -2,6 +2,15 @@
 
 FROM python:3.11-slim
 
+ARG APP_REVISION=local
+
+LABEL org.opencontainers.image.title="Whisper Video to Text" \
+      org.opencontainers.image.description="Local-first media transcription with Whisper, ffmpeg normalization, and web uploads." \
+      org.opencontainers.image.revision="${APP_REVISION}"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 # Install system dependencies with error handling
 RUN set -e && \
     apt-get update && \
@@ -68,9 +77,9 @@ USER appuser
 # Expose web server port
 EXPOSE 8000
 
-# Add health check that verifies the package is importable
+# Add health check that verifies the package and media registry are importable
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import whisper_video_to_text" || exit 1
+    CMD python -c "import whisper_video_to_text; from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS; assert '.m4a' in SUPPORTED_MEDIA_EXTENSIONS" || exit 1
 
 # Set entrypoint script
 ENTRYPOINT ["docker-entrypoint.sh"]
