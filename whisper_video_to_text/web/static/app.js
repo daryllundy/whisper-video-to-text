@@ -274,6 +274,37 @@ function createDownloadLink(jobId, ext, { compact = false } = {}) {
   return link;
 }
 
+let activeJobId = null;
+
+function showStopButton(jobId) {
+  const btn = document.getElementById('stop-btn');
+  if (!btn) return;
+  activeJobId = jobId;
+  btn.hidden = false;
+  btn.disabled = false;
+  btn.textContent = 'STOP JOB';
+}
+
+function hideStopButton() {
+  const btn = document.getElementById('stop-btn');
+  if (btn) btn.hidden = true;
+  activeJobId = null;
+}
+
+async function handleStopClick() {
+  if (!activeJobId) return;
+  const btn = document.getElementById('stop-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'STOPPING...';
+  }
+  try {
+    await fetch(`/api/jobs/${encodeURIComponent(activeJobId)}/cancel`, { method: 'POST' });
+  } catch (err) {
+    showError(`Stop request failed: ${err.message}`);
+  }
+}
+
 async function startJob(e) {
   e.preventDefault();
   clearError();
@@ -315,10 +346,12 @@ async function startJob(e) {
     document.getElementById('downloads').replaceChildren();
     renderPhaseLadder(-1, {});
     startTimer();
+    showStopButton(jobId);
     listen(jobId);
   } catch (err) {
     btn.textContent = originalText;
     btn.disabled = false;
+    hideStopButton();
     showError(`Error starting transcription: ${err.message}`);
     stopTimer();
   }
@@ -337,19 +370,25 @@ function listen(jobId) {
     const data = JSON.parse(ev.data);
     const isComplete = data.status === 'complete';
     const isError = data.status === 'error';
+    const isCancelled = data.status === 'cancelled';
+    const isTerminal = isComplete || isError || isCancelled;
     const mapped = phaseIndexForStatus(data.status);
     if (mapped >= 0) lastPhaseIdx = mapped;
     const phaseIdx = mapped >= 0 ? mapped : lastPhaseIdx;
 
     let intraProgress = 0;
-    if (mapped >= 0 && !isComplete && !isError) {
+    if (mapped >= 0 && !isTerminal) {
       const start = PHASE_BOUNDARIES[mapped];
       const end = PHASE_BOUNDARIES[mapped + 1];
       const clamped = Math.max(start, Math.min(end, data.progress || start));
       intraProgress = ((clamped - start) / (end - start)) * 100;
     }
 
-    renderPhaseLadder(phaseIdx, { progress: intraProgress, complete: isComplete, errored: isError });
+    renderPhaseLadder(phaseIdx, {
+      progress: intraProgress,
+      complete: isComplete,
+      errored: isError || isCancelled,
+    });
 
     if (data.status) {
       status.textContent = data.status.toUpperCase();
@@ -361,9 +400,10 @@ function listen(jobId) {
       output.textContent = data.result.text;
     }
 
-    if (isComplete || isError) {
+    if (isTerminal) {
       events.close();
       stopTimer();
+      hideStopButton();
       btn.textContent = 'START TRANSCRIPTION';
       btn.disabled = false;
     }
@@ -382,6 +422,7 @@ function listen(jobId) {
   events.onerror = () => {
     events.close();
     stopTimer();
+    hideStopButton();
     btn.textContent = 'START TRANSCRIPTION';
     btn.disabled = false;
   };
@@ -460,4 +501,6 @@ document.addEventListener('DOMContentLoaded', () => {
   themeBtn.addEventListener('click', toggleTheme);
   document.getElementById('history-btn').addEventListener('click', toggleHistory);
   document.getElementById('history-close').addEventListener('click', toggleHistory);
+  const stopBtn = document.getElementById('stop-btn');
+  if (stopBtn) stopBtn.addEventListener('click', handleStopClick);
 });

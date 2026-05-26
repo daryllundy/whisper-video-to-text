@@ -75,7 +75,7 @@ def test_upload_saved_with_job_scoped_name(tmp_path, monkeypatch):
     upload = _make_upload_file("my-video.mp4")
     captured_source: list[str] = []
 
-    def fake_run(request, progress=None):
+    def fake_run(request, progress=None, should_cancel=None):
         captured_source.append(request.source)
         return TranscriptionResult(text="", language=None, segments=[], rendered={})
 
