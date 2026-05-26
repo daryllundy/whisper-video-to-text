@@ -149,3 +149,5 @@ tmp/
 .claude/settings.local.json
 .kiro/
 .claude/
+ERRORS.md
+MEMORY.md
