@@ -81,6 +81,223 @@ function stopTimer() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Queue model: client-side, one job in flight at a time.
+// ---------------------------------------------------------------------------
+
+const queue = [];
+let queueActive = null;
+let queuePaused = false;
+const TERMINAL_ITEM_STATUSES = new Set(['complete', 'error', 'cancelled']);
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function enqueueFiles(files) {
+  const rejected = [];
+  let added = 0;
+  for (const file of files) {
+    if (!isSupportedMediaFile(file)) {
+      rejected.push(`${file.name || 'file'} (${getFileExtension(file.name || '') || 'no ext'})`);
+      continue;
+    }
+    queue.push({
+      id: (crypto.randomUUID ? crypto.randomUUID() : `q-${Date.now()}-${Math.random()}`),
+      file,
+      status: 'waiting',
+      jobId: null,
+      formats: null,
+      error: null,
+    });
+    added += 1;
+  }
+  if (rejected.length > 0) {
+    showError(`Skipped ${rejected.length} unsupported file(s): ${rejected.join(', ')}`);
+  }
+  renderQueue();
+  resetDropZoneState();
+  return added;
+}
+
+function removeQueueItem(id) {
+  const idx = queue.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  if (queue[idx].status !== 'waiting') return;
+  queue.splice(idx, 1);
+  renderQueue();
+  resetDropZoneState();
+}
+
+function clearCompleted() {
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (TERMINAL_ITEM_STATUSES.has(queue[i].status)) queue.splice(i, 1);
+  }
+  renderQueue();
+  resetDropZoneState();
+}
+
+function pauseQueue() {
+  queuePaused = true;
+  renderQueueControls();
+}
+
+function resumeQueue() {
+  queuePaused = false;
+  renderQueueControls();
+  processNext();
+}
+
+function startQueue() {
+  queuePaused = false;
+  renderQueueControls();
+  processNext();
+}
+
+function renderQueueControls() {
+  const pauseBtn = document.getElementById('queue-pause');
+  const resumeBtn = document.getElementById('queue-resume');
+  const startBtn = document.getElementById('queue-start');
+  const summary = document.getElementById('queue-summary');
+  if (pauseBtn) pauseBtn.hidden = !(queueActive && !queuePaused);
+  if (resumeBtn) resumeBtn.hidden = !queuePaused;
+  if (startBtn) {
+    const hasWaiting = queue.some(x => x.status === 'waiting');
+    startBtn.hidden = queueActive !== null || !hasWaiting;
+  }
+  if (summary) {
+    const total = queue.length;
+    const waiting = queue.filter(x => x.status === 'waiting').length;
+    const done = queue.filter(x => x.status === 'complete').length;
+    summary.textContent = `${total} item${total === 1 ? '' : 's'} · ${waiting} waiting · ${done} done`;
+  }
+}
+
+function renderQueue() {
+  const list = document.getElementById('queue-list');
+  const empty = document.getElementById('queue-empty');
+  if (!list) return;
+  list.replaceChildren();
+  if (queue.length === 0) {
+    if (empty) empty.hidden = false;
+    renderQueueControls();
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const item of queue) list.appendChild(renderQueueRow(item));
+  renderQueueControls();
+}
+
+function renderQueueRow(item) {
+  const card = document.createElement('div');
+  card.className = 'card queue-item';
+  card.dataset.itemId = item.id;
+  card.dataset.status = item.status;
+  card.setAttribute('role', 'listitem');
+
+  const row = document.createElement('div');
+  row.className = 'queue-item__row';
+
+  const info = document.createElement('div');
+  const name = document.createElement('div');
+  name.className = 'queue-item__name';
+  name.textContent = item.file.name;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const parts = [formatBytes(item.file.size)];
+  meta.textContent = parts.filter(Boolean).join(' · ');
+  const statusBadge = document.createElement('span');
+  statusBadge.className = 'queue-item__status';
+  statusBadge.textContent = item.status;
+  info.append(name, meta, statusBadge);
+
+  const actions = document.createElement('div');
+  actions.className = 'queue-item__actions';
+
+  if (item.status === 'waiting') {
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'btn btn-compact';
+    rm.textContent = 'REMOVE';
+    rm.addEventListener('click', () => removeQueueItem(item.id));
+    actions.appendChild(rm);
+  } else if (item.status === 'complete' && item.formats && item.jobId) {
+    Object.keys(item.formats).forEach(ext => {
+      actions.appendChild(createDownloadLink(item.jobId, ext, { compact: true }));
+    });
+  } else if ((item.status === 'error' || item.status === 'cancelled') && item.error) {
+    const err = document.createElement('span');
+    err.className = 'meta error-text';
+    err.textContent = item.error;
+    actions.appendChild(err);
+  }
+
+  row.append(info, actions);
+  card.appendChild(row);
+  return card;
+}
+
+function collectFormSettings() {
+  const fd = new FormData();
+  const model = document.getElementById('model');
+  const language = document.getElementById('language');
+  const timestamps = document.getElementById('timestamps');
+  if (model) fd.set('model', model.value);
+  if (language && language.value) fd.set('language', language.value);
+  fd.set('timestamps', timestamps && timestamps.checked ? 'true' : 'false');
+  return fd;
+}
+
+async function processNext() {
+  if (queuePaused) return;
+  if (queueActive) return;
+  const next = queue.find(x => x.status === 'waiting');
+  if (!next) {
+    renderQueueControls();
+    return;
+  }
+
+  queueActive = next;
+  next.status = 'starting';
+  renderQueue();
+
+  const data = collectFormSettings();
+  data.set('file', next.file);
+
+  try {
+    const res = await fetch('/api/transcribe', { method: 'POST', body: data });
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    const { job_id: jobId } = await res.json();
+    next.jobId = jobId;
+    showActiveJobUI(next);
+    showStopButton(jobId);
+    listen(jobId, next);
+  } catch (err) {
+    next.status = 'error';
+    next.error = err.message;
+    queueActive = null;
+    renderQueue();
+    processNext();
+  }
+}
+
+function showActiveJobUI(item) {
+  const statusContainer = document.getElementById('status-container');
+  const status = document.getElementById('status');
+  const message = document.getElementById('message');
+  statusContainer.hidden = false;
+  status.textContent = 'STARTING';
+  status.dataset.state = 'queued';
+  document.getElementById('downloads').hidden = true;
+  document.getElementById('downloads').replaceChildren();
+  if (message) message.textContent = `Processing: ${item.file.name}`;
+  renderPhaseLadder(-1, {});
+  startTimer();
+}
+
 function showError(msg) {
   const el = document.getElementById('form-error');
   if (!el) return;
@@ -122,13 +339,9 @@ function setDropZoneState(state, message) {
 }
 
 function resetDropZoneState() {
-  const fileInput = document.getElementById('file');
-  const selected = fileInput && fileInput.files && fileInput.files.length > 0
-    ? fileInput.files[0]
-    : null;
-
-  if (selected) setDropZoneState('selected', selected.name);
-  else setDropZoneState('', 'OR CHOOSE FILE');
+  const waiting = queue.filter(x => x.status === 'waiting').length;
+  if (waiting > 0) setDropZoneState('selected', `${waiting} IN QUEUE`);
+  else setDropZoneState('', 'OR CHOOSE FILES');
 }
 
 function clearFileInput() {
@@ -136,28 +349,6 @@ function clearFileInput() {
   if (!fileInput) return;
   fileInput.value = '';
   resetDropZoneState();
-}
-
-function selectMediaFile(file) {
-  const extension = getFileExtension(file.name || '');
-  if (!isSupportedMediaFile(file)) {
-    clearFileInput();
-    setDropZoneState('error', 'UNSUPPORTED FILE');
-    showError(`Unsupported file type '${extension || 'none'}'. Choose a supported media file.`);
-    return false;
-  }
-
-  const transfer = new DataTransfer();
-  transfer.items.add(file);
-
-  const fileInput = document.getElementById('file');
-  const urlInput = document.getElementById('url');
-  if (!fileInput) return false;
-
-  fileInput.files = transfer.files;
-  if (urlInput) urlInput.value = '';
-  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-  return true;
 }
 
 function hasFileDrag(event) {
@@ -213,35 +404,18 @@ function handleDrop(event) {
     resetDropZoneState();
     return;
   }
-
-  if (files.length > 1) {
-    setDropZoneState('error', 'ONE FILE ONLY');
-    showError('Drop one media file at a time.');
-    return;
-  }
-
-  selectMediaFile(files[0]);
+  enqueueFiles(files);
 }
 
 function handleFileInputChange(event) {
   clearError();
-  const file = event.target.files && event.target.files.length > 0 ? event.target.files[0] : null;
-  if (!file) {
+  const files = Array.from(event.target.files || []);
+  if (files.length === 0) {
     resetDropZoneState();
     return;
   }
-
-  if (!isSupportedMediaFile(file)) {
-    const extension = getFileExtension(file.name || '');
-    event.target.value = '';
-    setDropZoneState('error', 'UNSUPPORTED FILE');
-    showError(`Unsupported file type '${extension || 'none'}'. Choose a supported media file.`);
-    return;
-  }
-
-  const urlInput = document.getElementById('url');
-  if (urlInput) urlInput.value = '';
-  setDropZoneState('selected', file.name);
+  enqueueFiles(files);
+  event.target.value = '';
 }
 
 function bindDragAndDrop() {
@@ -309,23 +483,27 @@ async function startJob(e) {
   e.preventDefault();
   clearError();
 
-  const fileInput = document.getElementById('file');
   const urlInput = document.getElementById('url');
-  const hasFile = fileInput.files && fileInput.files.length > 0;
-  const hasUrl = urlInput.value.trim().length > 0;
+  const url = urlInput ? urlInput.value.trim() : '';
+  const hasQueuedFiles = queue.some(x => x.status === 'waiting');
 
-  if (hasFile && !isSupportedMediaFile(fileInput.files[0])) {
-    showError('Choose a supported media file.');
+  if (url && hasQueuedFiles) {
+    showError('Submit either a URL OR queued files, not both.');
     return;
   }
 
-  if (!hasFile && !hasUrl) {
-    showError('Choose a file or paste a URL to begin.');
+  if (hasQueuedFiles) {
+    startQueue();
     return;
   }
 
-  const form = document.getElementById('form');
-  const data = new FormData(form);
+  if (!url) {
+    showError('Drop files into the queue or paste a URL to begin.');
+    return;
+  }
+
+  const data = collectFormSettings();
+  data.set('url', url);
   const btn = document.getElementById('submit-btn');
   const originalText = btn.textContent;
   btn.textContent = 'INITIALIZING...';
@@ -357,7 +535,7 @@ async function startJob(e) {
   }
 }
 
-function listen(jobId) {
+function listen(jobId, queueItem = null) {
   const events = new EventSource(`/events/${jobId}`);
   const status = document.getElementById('status');
   const message = document.getElementById('message');
@@ -365,6 +543,19 @@ function listen(jobId) {
   const downloads = document.getElementById('downloads');
   const btn = document.getElementById('submit-btn');
   let lastPhaseIdx = -1;
+
+  const finishActive = () => {
+    events.close();
+    stopTimer();
+    hideStopButton();
+    btn.textContent = 'START TRANSCRIPTION';
+    btn.disabled = false;
+    if (queueItem) {
+      queueActive = null;
+      renderQueue();
+      processNext();
+    }
+  };
 
   events.onmessage = (ev) => {
     const data = JSON.parse(ev.data);
@@ -400,12 +591,25 @@ function listen(jobId) {
       output.textContent = data.result.text;
     }
 
+    if (queueItem && data.status && !isTerminal) {
+      queueItem.status = data.status;
+      renderQueue();
+    }
+
     if (isTerminal) {
-      events.close();
-      stopTimer();
-      hideStopButton();
-      btn.textContent = 'START TRANSCRIPTION';
-      btn.disabled = false;
+      if (queueItem) {
+        if (isComplete) {
+          queueItem.status = 'complete';
+          if (data.result && data.result.formats) queueItem.formats = data.result.formats;
+        } else if (isError) {
+          queueItem.status = 'error';
+          queueItem.error = data.message || 'Transcription failed';
+        } else {
+          queueItem.status = 'cancelled';
+          queueItem.error = data.message || 'Cancelled';
+        }
+      }
+      finishActive();
     }
 
     if (isComplete && data.result && data.result.formats) {
@@ -420,11 +624,11 @@ function listen(jobId) {
   };
 
   events.onerror = () => {
-    events.close();
-    stopTimer();
-    hideStopButton();
-    btn.textContent = 'START TRANSCRIPTION';
-    btn.disabled = false;
+    if (queueItem && !TERMINAL_ITEM_STATUSES.has(queueItem.status)) {
+      queueItem.status = 'error';
+      queueItem.error = 'Connection lost';
+    }
+    finishActive();
   };
 }
 
@@ -503,4 +707,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('history-close').addEventListener('click', toggleHistory);
   const stopBtn = document.getElementById('stop-btn');
   if (stopBtn) stopBtn.addEventListener('click', handleStopClick);
+
+  const startQ = document.getElementById('queue-start');
+  const pauseQ = document.getElementById('queue-pause');
+  const resumeQ = document.getElementById('queue-resume');
+  const clearQ = document.getElementById('queue-clear');
+  if (startQ) startQ.addEventListener('click', startQueue);
+  if (pauseQ) pauseQ.addEventListener('click', pauseQueue);
+  if (resumeQ) resumeQ.addEventListener('click', resumeQueue);
+  if (clearQ) clearQ.addEventListener('click', clearCompleted);
+  renderQueue();
 });

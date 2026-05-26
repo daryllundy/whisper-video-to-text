@@ -42,9 +42,35 @@ def test_web_javascript_binds_drag_and_drop_events():
     )
 
     assert "function handleDrop" in source
-    assert "selectMediaFile" in source
+    assert "function enqueueFiles" in source
     assert "document.addEventListener('dragenter', handleDragEnter)" in source
     assert "document.addEventListener('drop', handleDrop)" in source
+
+
+def test_web_page_exposes_queue_controls():
+    response = TestClient(app).get("/")
+    source = response.text
+
+    assert response.status_code == 200
+    assert 'id="queue-list"' in source
+    assert 'id="queue-start"' in source
+    assert 'id="queue-pause"' in source
+    assert 'id="queue-resume"' in source
+    assert 'id="queue-clear"' in source
+    assert "multiple" in source
+
+
+def test_web_javascript_implements_queue_drain():
+    source = (ROOT / "whisper_video_to_text" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function processNext" in source
+    assert "function startQueue" in source
+    assert "function pauseQueue" in source
+    assert "function resumeQueue" in source
+    assert "function clearCompleted" in source
+    assert "function renderQueue" in source
 
 
 def test_pipeline_uses_whisper_wav_converter(monkeypatch, tmp_path):

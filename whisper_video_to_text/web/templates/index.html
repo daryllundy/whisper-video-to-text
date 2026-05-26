@@ -53,7 +53,7 @@
               <span class="drop-zone__title">DROP MEDIA FILE</span>
               <span id="drop-zone-status" class="drop-zone__status">OR CHOOSE FILE</span>
             </div>
-            <input id="file" name="file" type="file"
+            <input id="file" name="file" type="file" multiple
               accept="{{ media_accept }}" aria-describedby="drop-zone-status" />
           </div>
 
@@ -93,8 +93,24 @@
       </form>
     </section>
 
+    <section class="grid-item reveal reveal-2" aria-labelledby="queue-heading">
+      <div id="queue-heading" class="meta section-heading">// 02. QUEUE</div>
+
+      <div class="card queue-card">
+        <div class="queue-controls">
+          <button id="queue-start" class="btn btn-compact" type="button">START QUEUE</button>
+          <button id="queue-pause" class="btn btn-compact" type="button" hidden>PAUSE</button>
+          <button id="queue-resume" class="btn btn-compact" type="button" hidden>RESUME</button>
+          <button id="queue-clear" class="btn btn-compact" type="button">CLEAR DONE</button>
+          <span id="queue-summary" class="meta queue-summary">0 items</span>
+        </div>
+        <div id="queue-empty" class="meta queue-empty">Drop or pick files to build a queue.</div>
+        <div id="queue-list" class="queue-list" role="list"></div>
+      </div>
+    </section>
+
     <section class="grid-item grid-item--output reveal reveal-3" aria-labelledby="output-heading">
-      <div id="output-heading" class="meta section-heading">// 02. DATA OUTPUT</div>
+      <div id="output-heading" class="meta section-heading">// 03. DATA OUTPUT</div>
 
       <div id="status-container" class="card status-card" hidden>
         <div class="status-card__header">
