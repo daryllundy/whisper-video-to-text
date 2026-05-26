@@ -115,3 +115,31 @@ def test_upload_supported_extensions_accepted(tmp_path, monkeypatch):
 
         statuses = [e[1] for e in events if isinstance(e[1], str)]
         assert "error" not in statuses, f"Extension {ext} was incorrectly rejected"
+
+
+def test_transcribe_api_passes_uploaded_file_to_background_task():
+    """Multipart uploads from the web form are forwarded to the worker task."""
+    from fastapi.testclient import TestClient
+
+    import whisper_video_to_text.web.views as views_mod
+    from whisper_video_to_text.web.main import app
+
+    calls: list[dict] = []
+
+    def fake_task(job_id, **kwargs):
+        calls.append({"job_id": job_id, **kwargs})
+
+    with patch.object(views_mod, "run_transcription_task", side_effect=fake_task):
+        response = TestClient(app).post(
+            "/api/transcribe",
+            files={"file": ("clip.mp3", b"fake media", "audio/mpeg")},
+            data={"model": "tiny", "timestamps": "true"},
+        )
+
+    assert response.status_code == 200
+    assert calls
+    assert calls[0]["file"] is not None
+    assert calls[0]["file"].filename == "clip.mp3"
+    assert calls[0]["url"] is None
+    assert calls[0]["model"] == "tiny"
+    assert calls[0]["timestamps"] is True

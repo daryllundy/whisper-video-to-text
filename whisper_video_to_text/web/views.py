@@ -9,8 +9,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from starlette.datastructures import UploadFile
 
 from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
 from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
