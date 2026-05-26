@@ -17,6 +17,10 @@ from whisper_video_to_text.transcribe import (
 )
 
 
+class TranscriptionCancelled(Exception):
+    """Raised when a transcription job is cancelled mid-pipeline."""
+
+
 @dataclass
 class TranscriptionRequest:
     source: str
@@ -39,11 +43,13 @@ class TranscriptionResult:
 
 
 ProgressCallback = Callable[[int, str, str], None]
+CancelCheck = Callable[[], bool]
 
 
 def run_transcription(
     request: TranscriptionRequest,
     progress: ProgressCallback | None = None,
+    should_cancel: CancelCheck | None = None,
 ) -> TranscriptionResult:
     """Orchestrate download → convert → transcribe → render for both CLI and web."""
 
@@ -51,26 +57,36 @@ def run_transcription(
         if progress:
             progress(pct, status, msg)
 
+    def check_cancelled() -> None:
+        if should_cancel and should_cancel():
+            raise TranscriptionCancelled()
+
     tempdir = tempfile.mkdtemp(prefix="wvttmp_")
     try:
         # Acquire source media
         media_path = request.source
         if request.download:
+            check_cancelled()
             report(10, "downloading", "Downloading video...")
             media_path = download_video(request.source, output_dir=tempdir)
 
         # Normalize to 16 kHz mono WAV
+        check_cancelled()
         report(30, "converting", "Extracting audio...")
         audio_out = Path(tempdir) / f"{Path(media_path).stem}-whisper.wav"
-        audio_path = convert_media_to_whisper_audio(media_path, output_file=str(audio_out))
+        audio_path = convert_media_to_whisper_audio(
+            media_path, output_file=str(audio_out), should_cancel=should_cancel
+        )
 
-        # Transcribe
+        # Transcribe (blocking; cancellation only takes effect after it returns)
+        check_cancelled()
         report(60, "transcribing", "Transcribing audio...")
         result = transcribe_audio(
             str(audio_path), model_name=request.model, language=request.language
         )
 
         # Render requested formats
+        check_cancelled()
         report(90, "saving", "Preparing output...")
         rendered: dict[str, str] = {}
         for fmt in request.formats:
