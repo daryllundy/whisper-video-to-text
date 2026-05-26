@@ -147,6 +147,8 @@ def run_transcription_task(
     if formats is None:
         formats = ["txt"]
 
+    source_name: str | None = None
+
     try:
         # Resolve source: save upload to disk, or pass URL directly to pipeline
         if url:
@@ -168,6 +170,7 @@ def run_transcription_task(
                 shutil.copyfileobj(file.file, f_out)
             source = dest
             download = False
+            source_name = Path(file.filename or "").name or None
         else:
             update_progress_sync(job_id, 100, "error", "No file or URL provided")
             return
@@ -198,6 +201,7 @@ def run_transcription_task(
                 "text": result.text,
                 "language": result.language,
                 "formats": result.rendered,
+                "source_name": source_name,
             },
         )
 

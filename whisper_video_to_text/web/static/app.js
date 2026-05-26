@@ -132,6 +132,19 @@ function removeQueueItem(id) {
   resetDropZoneState();
 }
 
+function restartQueueItem(id) {
+  const item = queue.find(x => x.id === id);
+  if (!item) return;
+  if (item.status !== 'cancelled' && item.status !== 'error') return;
+  item.status = 'waiting';
+  item.jobId = null;
+  item.formats = null;
+  item.sourceName = null;
+  item.error = null;
+  renderQueue();
+  processNext();
+}
+
 function clearCompleted() {
   for (let i = queue.length - 1; i >= 0; i--) {
     if (TERMINAL_ITEM_STATUSES.has(queue[i].status)) queue.splice(i, 1);
@@ -225,14 +238,26 @@ function renderQueueRow(item) {
     rm.addEventListener('click', () => removeQueueItem(item.id));
     actions.appendChild(rm);
   } else if (item.status === 'complete' && item.formats && item.jobId) {
+    const baseName = item.sourceName || item.file.name;
     Object.keys(item.formats).forEach(ext => {
-      actions.appendChild(createDownloadLink(item.jobId, ext, { compact: true }));
+      actions.appendChild(createDownloadLink(item.jobId, ext, {
+        compact: true,
+        downloadName: friendlyDownloadName(baseName, ext),
+      }));
     });
-  } else if ((item.status === 'error' || item.status === 'cancelled') && item.error) {
-    const err = document.createElement('span');
-    err.className = 'meta error-text';
-    err.textContent = item.error;
-    actions.appendChild(err);
+  } else if (item.status === 'error' || item.status === 'cancelled') {
+    if (item.error) {
+      const err = document.createElement('span');
+      err.className = 'meta error-text';
+      err.textContent = item.error;
+      actions.appendChild(err);
+    }
+    const restart = document.createElement('button');
+    restart.type = 'button';
+    restart.className = 'btn btn-compact';
+    restart.textContent = 'RESTART';
+    restart.addEventListener('click', () => restartQueueItem(item.id));
+    actions.appendChild(restart);
   }
 
   row.append(info, actions);
@@ -438,13 +463,28 @@ function toggleTheme() {
   if (btn) btn.textContent = target === 'light' ? 'NIGHT MODE' : 'DAY MODE';
 }
 
-function createDownloadLink(jobId, ext, { compact = false } = {}) {
+function friendlyDownloadName(sourceName, ext) {
+  if (!sourceName) return null;
+  const dot = sourceName.lastIndexOf('.');
+  const stem = dot > 0 ? sourceName.slice(0, dot) : sourceName;
+  const slug = stem
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  if (!slug) return null;
+  return `${slug}-transcript.${ext}`;
+}
+
+function createDownloadLink(jobId, ext, { compact = false, downloadName = null } = {}) {
   const link = document.createElement('a');
   link.href = `/download/${encodeURIComponent(jobId)}/${encodeURIComponent(ext)}`;
   link.className = compact ? 'btn btn-download btn-download--compact' : 'btn btn-download';
   link.textContent = compact ? ext.toUpperCase() : `DOWNLOAD .${ext.toUpperCase()}`;
   link.target = '_blank';
   link.rel = 'noopener';
+  if (downloadName) link.download = downloadName;
   return link;
 }
 
@@ -600,7 +640,10 @@ function listen(jobId, queueItem = null) {
       if (queueItem) {
         if (isComplete) {
           queueItem.status = 'complete';
-          if (data.result && data.result.formats) queueItem.formats = data.result.formats;
+          if (data.result) {
+            if (data.result.formats) queueItem.formats = data.result.formats;
+            if (data.result.source_name) queueItem.sourceName = data.result.source_name;
+          }
         } else if (isError) {
           queueItem.status = 'error';
           queueItem.error = data.message || 'Transcription failed';
@@ -613,9 +656,14 @@ function listen(jobId, queueItem = null) {
     }
 
     if (isComplete && data.result && data.result.formats) {
+      const baseName = (queueItem && (queueItem.sourceName || queueItem.file.name))
+        || (data.result && data.result.source_name)
+        || null;
       downloads.replaceChildren();
       Object.keys(data.result.formats).forEach(ext => {
-        downloads.appendChild(createDownloadLink(jobId, ext));
+        downloads.appendChild(createDownloadLink(jobId, ext, {
+          downloadName: friendlyDownloadName(baseName, ext),
+        }));
       });
       downloads.hidden = false;
       document.body.classList.add('flash-success');

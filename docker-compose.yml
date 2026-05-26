@@ -31,6 +31,8 @@ services:
           assert ".m4a" in SUPPORTED_MEDIA_EXTENSIONS
           body = urllib.request.urlopen("http://localhost:8000/", timeout=5).read().decode("utf-8")
           assert 'id="drop-zone"' in body
+          assert 'id="queue-list"' in body
+          assert 'id="stop-btn"' in body
       interval: 30s
       timeout: 10s
       retries: 3
