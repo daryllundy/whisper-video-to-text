@@ -1,9 +1,13 @@
 import logging
 import subprocess
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
 
 from tqdm import tqdm
+
+from whisper_video_to_text.errors import TranscriptionCancelled
 
 # Optional dependency: ffmpeg-python for progress bar support
 try:
@@ -106,14 +110,50 @@ def _get_media_duration(input_path: Path) -> Optional[float]:
         return None
 
 
-def _run_ffmpeg(cmd: list[str], duration: Optional[float]) -> None:
-    if duration:
-        process = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
-        pbar = tqdm(total=duration, unit="sec", desc="ffmpeg", leave=True)
-        last_time = 0.0
-        if process.stderr:
-            for line in process.stderr:
-                if "time=" in line:
+def _terminate_process(process: subprocess.Popen, output_path: Optional[Path]) -> None:
+    """Terminate an ffmpeg child, escalating to kill, and remove partial output."""
+    try:
+        process.terminate()
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=2)
+    except Exception:
+        logging.debug("Failed to terminate ffmpeg cleanly", exc_info=True)
+    if output_path is not None:
+        try:
+            output_path.unlink(missing_ok=True)
+        except Exception:
+            logging.debug("Failed to remove partial output", exc_info=True)
+
+
+def _run_ffmpeg(
+    cmd: list[str],
+    duration: Optional[float],
+    should_cancel: Optional[Callable[[], bool]] = None,
+    output_path: Optional[Path] = None,
+) -> None:
+    """Run ffmpeg via Popen; poll for cancellation and terminate cleanly when requested."""
+    process = subprocess.Popen(cmd, stderr=subprocess.PIPE, universal_newlines=True)
+    pbar = tqdm(total=duration, unit="sec", desc="ffmpeg", leave=True) if duration else None
+    last_time = 0.0
+
+    try:
+        if process.stderr is not None:
+            while True:
+                if should_cancel and should_cancel():
+                    _terminate_process(process, output_path)
+                    raise TranscriptionCancelled()
+
+                line = process.stderr.readline()
+                if not line:
+                    if process.poll() is not None:
+                        break
+                    time.sleep(0.05)
+                    continue
+
+                if pbar is not None and "time=" in line:
                     try:
                         time_str = line.split("time=")[-1].split(" ")[0]
                         h, m, s = [float(x) for x in time_str.split(":")]
@@ -122,16 +162,19 @@ def _run_ffmpeg(cmd: list[str], duration: Optional[float]) -> None:
                         last_time = seconds
                     except Exception:
                         pass
+
+        # Final cancel check before declaring success
+        if should_cancel and should_cancel():
+            _terminate_process(process, output_path)
+            raise TranscriptionCancelled()
+
         process.wait()
-        pbar.close()
         if process.returncode != 0:
+            logging.error(f"✗ Error converting file: ffmpeg exited {process.returncode}")
             raise subprocess.CalledProcessError(process.returncode, cmd)
-    else:
-        try:
-            subprocess.run(cmd, check=True)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"✗ Error converting file: {e}")
-            raise
+    finally:
+        if pbar is not None:
+            pbar.close()
 
 
 def _default_whisper_audio_path(input_path: Path) -> Path:
@@ -142,7 +185,10 @@ def _default_whisper_audio_path(input_path: Path) -> Path:
 
 
 def convert_media_to_whisper_audio(
-    input_file: str, output_file: Optional[str] = None, verbose: bool = False
+    input_file: str,
+    output_file: Optional[str] = None,
+    verbose: bool = False,
+    should_cancel: Optional[Callable[[], bool]] = None,
 ) -> Path:
     """
     Normalize supported media to 16 kHz mono PCM WAV for Whisper.
@@ -151,6 +197,8 @@ def convert_media_to_whisper_audio(
         input_file: Path to a supported media file.
         output_file: Path to the output WAV file (optional).
         verbose: If True, show ffmpeg output.
+        should_cancel: Optional callable polled during ffmpeg; raises
+            TranscriptionCancelled and removes the partial WAV when it returns True.
 
     Returns:
         Path to the output WAV file.
@@ -193,7 +241,7 @@ def convert_media_to_whisper_audio(
     )
 
     logging.info(f"Converting {input_path.name} to Whisper WAV...")
-    _run_ffmpeg(cmd, duration)
+    _run_ffmpeg(cmd, duration, should_cancel=should_cancel, output_path=output_path)
     logging.info(f"✓ Conversion complete: {output_path}")
     return output_path
 

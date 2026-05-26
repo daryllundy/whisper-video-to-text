@@ -9,6 +9,7 @@ from typing import Any
 
 from whisper_video_to_text.convert import convert_media_to_whisper_audio
 from whisper_video_to_text.download import download_video
+from whisper_video_to_text.errors import TranscriptionCancelled
 from whisper_video_to_text.transcribe import (
     render_srt,
     render_txt,
@@ -16,9 +17,12 @@ from whisper_video_to_text.transcribe import (
     transcribe_audio,
 )
 
-
-class TranscriptionCancelled(Exception):
-    """Raised when a transcription job is cancelled mid-pipeline."""
+__all__ = [
+    "TranscriptionCancelled",
+    "TranscriptionRequest",
+    "TranscriptionResult",
+    "run_transcription",
+]
 
 
 @dataclass
