@@ -17,11 +17,15 @@ from whisper_video_to_text.convert import (
     SUPPORTED_MEDIA_EXTENSIONS,
     supported_media_extensions_display,
 )
+from whisper_video_to_text.errors import TranscriptionCancelled
 from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 from whisper_video_to_text.web.progress import (
     create_job,
     get_job,
+    is_cancel_requested,
     progress_stream,
+    request_cancel_sync,
+    set_cancelled_sync,
     set_result_sync,
     update_progress_sync,
 )
@@ -60,6 +64,20 @@ async def download_file(job_id: str, extension: str) -> FileResponse:
     return FileResponse(
         file_path, media_type="text/plain", filename=f"transcript-{job_id}.{extension}"
     )
+
+
+@router.post("/api/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str) -> JSONResponse:
+    """Request cancellation of an in-progress job."""
+    job = get_job(job_id)
+    if not job:
+        return JSONResponse({"error": "Job not found"}, status_code=404)
+
+    if job.status in {"complete", "error", "cancelled"}:
+        return JSONResponse({"job_id": job_id, "status": job.status})
+
+    request_cancel_sync(job_id)
+    return JSONResponse({"job_id": job_id, "status": "cancel_requested"})
 
 
 @router.get("/api/history")
@@ -166,7 +184,13 @@ def run_transcription_task(
         result = run_transcription(
             request,
             progress=lambda pct, status, msg: update_progress_sync(job_id, pct, status, msg),
+            should_cancel=lambda: is_cancel_requested(job_id),
         )
+
+        # Whisper is blocking; cancellation requested during it surfaces here.
+        if is_cancel_requested(job_id):
+            set_cancelled_sync(job_id)
+            return
 
         set_result_sync(
             job_id,
@@ -177,6 +201,8 @@ def run_transcription_task(
             },
         )
 
+    except TranscriptionCancelled:
+        set_cancelled_sync(job_id)
     except Exception as e:
         logging.exception(f"Transcription error for job {job_id}: {e}")
         update_progress_sync(job_id, 100, "error", f"Error: {e}")
