@@ -53,11 +53,12 @@ def test_web_page_exposes_queue_controls():
 
     assert response.status_code == 200
     assert 'id="queue-list"' in source
-    assert 'id="queue-start"' in source
-    assert 'id="queue-pause"' in source
-    assert 'id="queue-resume"' in source
     assert 'id="queue-clear"' in source
     assert "multiple" in source
+    # Per-row controls replace queue-level pause/resume and the standalone stop button.
+    assert 'id="queue-pause"' not in source
+    assert 'id="queue-resume"' not in source
+    assert 'id="stop-btn"' not in source
 
 
 def test_web_javascript_implements_queue_drain():
@@ -66,11 +67,12 @@ def test_web_javascript_implements_queue_drain():
     )
 
     assert "function processNext" in source
-    assert "function startQueue" in source
-    assert "function pauseQueue" in source
-    assert "function resumeQueue" in source
     assert "function clearCompleted" in source
     assert "function renderQueue" in source
+    assert "function stopQueueItem" in source
+    # Drain auto-starts on enqueue; no separate pause/resume.
+    assert "function pauseQueue" not in source
+    assert "function resumeQueue" not in source
 
 
 def test_web_javascript_supports_restart_and_friendly_names():

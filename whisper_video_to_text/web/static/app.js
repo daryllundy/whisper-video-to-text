@@ -87,8 +87,10 @@ function stopTimer() {
 
 const queue = [];
 let queueActive = null;
-let queuePaused = false;
 const TERMINAL_ITEM_STATUSES = new Set(['complete', 'error', 'cancelled']);
+const ACTIVE_ITEM_STATUSES = new Set([
+  'starting', 'uploading', 'downloading', 'converting', 'transcribing', 'saving',
+]);
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return '';
@@ -111,6 +113,7 @@ function enqueueFiles(files) {
       status: 'waiting',
       jobId: null,
       formats: null,
+      sourceName: null,
       error: null,
     });
     added += 1;
@@ -120,6 +123,7 @@ function enqueueFiles(files) {
   }
   renderQueue();
   resetDropZoneState();
+  if (added > 0) processNext();
   return added;
 }
 
@@ -153,40 +157,23 @@ function clearCompleted() {
   resetDropZoneState();
 }
 
-function pauseQueue() {
-  queuePaused = true;
-  renderQueueControls();
-}
-
-function resumeQueue() {
-  queuePaused = false;
-  renderQueueControls();
-  processNext();
-}
-
-function startQueue() {
-  queuePaused = false;
-  renderQueueControls();
-  processNext();
+async function stopQueueItem(id) {
+  const item = queue.find(x => x.id === id);
+  if (!item || !item.jobId) return;
+  try {
+    await fetch(`/api/jobs/${encodeURIComponent(item.jobId)}/cancel`, { method: 'POST' });
+  } catch (err) {
+    showError(`Stop request failed: ${err.message}`);
+  }
 }
 
 function renderQueueControls() {
-  const pauseBtn = document.getElementById('queue-pause');
-  const resumeBtn = document.getElementById('queue-resume');
-  const startBtn = document.getElementById('queue-start');
   const summary = document.getElementById('queue-summary');
-  if (pauseBtn) pauseBtn.hidden = !(queueActive && !queuePaused);
-  if (resumeBtn) resumeBtn.hidden = !queuePaused;
-  if (startBtn) {
-    const hasWaiting = queue.some(x => x.status === 'waiting');
-    startBtn.hidden = queueActive !== null || !hasWaiting;
-  }
-  if (summary) {
-    const total = queue.length;
-    const waiting = queue.filter(x => x.status === 'waiting').length;
-    const done = queue.filter(x => x.status === 'complete').length;
-    summary.textContent = `${total} item${total === 1 ? '' : 's'} · ${waiting} waiting · ${done} done`;
-  }
+  if (!summary) return;
+  const total = queue.length;
+  const waiting = queue.filter(x => x.status === 'waiting').length;
+  const done = queue.filter(x => x.status === 'complete').length;
+  summary.textContent = `${total} item${total === 1 ? '' : 's'} · ${waiting} waiting · ${done} done`;
 }
 
 function renderQueue() {
@@ -237,6 +224,14 @@ function renderQueueRow(item) {
     rm.textContent = 'REMOVE';
     rm.addEventListener('click', () => removeQueueItem(item.id));
     actions.appendChild(rm);
+  } else if (ACTIVE_ITEM_STATUSES.has(item.status)) {
+    const stop = document.createElement('button');
+    stop.type = 'button';
+    stop.className = 'btn btn-compact';
+    stop.textContent = 'STOP';
+    stop.disabled = !item.jobId;
+    stop.addEventListener('click', () => stopQueueItem(item.id));
+    actions.appendChild(stop);
   } else if (item.status === 'complete' && item.formats && item.jobId) {
     const baseName = item.sourceName || item.file.name;
     Object.keys(item.formats).forEach(ext => {
@@ -277,7 +272,6 @@ function collectFormSettings() {
 }
 
 async function processNext() {
-  if (queuePaused) return;
   if (queueActive) return;
   const next = queue.find(x => x.status === 'waiting');
   if (!next) {
@@ -298,7 +292,6 @@ async function processNext() {
     const { job_id: jobId } = await res.json();
     next.jobId = jobId;
     showActiveJobUI(next);
-    showStopButton(jobId);
     listen(jobId, next);
   } catch (err) {
     next.status = 'error';
@@ -488,37 +481,6 @@ function createDownloadLink(jobId, ext, { compact = false, downloadName = null }
   return link;
 }
 
-let activeJobId = null;
-
-function showStopButton(jobId) {
-  const btn = document.getElementById('stop-btn');
-  if (!btn) return;
-  activeJobId = jobId;
-  btn.hidden = false;
-  btn.disabled = false;
-  btn.textContent = 'STOP JOB';
-}
-
-function hideStopButton() {
-  const btn = document.getElementById('stop-btn');
-  if (btn) btn.hidden = true;
-  activeJobId = null;
-}
-
-async function handleStopClick() {
-  if (!activeJobId) return;
-  const btn = document.getElementById('stop-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'STOPPING...';
-  }
-  try {
-    await fetch(`/api/jobs/${encodeURIComponent(activeJobId)}/cancel`, { method: 'POST' });
-  } catch (err) {
-    showError(`Stop request failed: ${err.message}`);
-  }
-}
-
 async function startJob(e) {
   e.preventDefault();
   clearError();
@@ -533,7 +495,7 @@ async function startJob(e) {
   }
 
   if (hasQueuedFiles) {
-    startQueue();
+    processNext();
     return;
   }
 
@@ -564,12 +526,10 @@ async function startJob(e) {
     document.getElementById('downloads').replaceChildren();
     renderPhaseLadder(-1, {});
     startTimer();
-    showStopButton(jobId);
     listen(jobId);
   } catch (err) {
     btn.textContent = originalText;
     btn.disabled = false;
-    hideStopButton();
     showError(`Error starting transcription: ${err.message}`);
     stopTimer();
   }
@@ -587,7 +547,6 @@ function listen(jobId, queueItem = null) {
   const finishActive = () => {
     events.close();
     stopTimer();
-    hideStopButton();
     btn.textContent = 'START TRANSCRIPTION';
     btn.disabled = false;
     if (queueItem) {
@@ -753,16 +712,8 @@ document.addEventListener('DOMContentLoaded', () => {
   themeBtn.addEventListener('click', toggleTheme);
   document.getElementById('history-btn').addEventListener('click', toggleHistory);
   document.getElementById('history-close').addEventListener('click', toggleHistory);
-  const stopBtn = document.getElementById('stop-btn');
-  if (stopBtn) stopBtn.addEventListener('click', handleStopClick);
 
-  const startQ = document.getElementById('queue-start');
-  const pauseQ = document.getElementById('queue-pause');
-  const resumeQ = document.getElementById('queue-resume');
   const clearQ = document.getElementById('queue-clear');
-  if (startQ) startQ.addEventListener('click', startQueue);
-  if (pauseQ) pauseQ.addEventListener('click', pauseQueue);
-  if (resumeQ) resumeQ.addEventListener('click', resumeQueue);
   if (clearQ) clearQ.addEventListener('click', clearCompleted);
   renderQueue();
 });
