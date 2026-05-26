@@ -73,6 +73,19 @@ def test_web_javascript_implements_queue_drain():
     assert "function renderQueue" in source
 
 
+def test_web_javascript_supports_restart_and_friendly_names():
+    source = (ROOT / "whisper_video_to_text" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function restartQueueItem" in source
+    assert "function friendlyDownloadName" in source
+    # Restart button is wired and only on terminal-failure rows
+    assert "'RESTART'" in source
+    # Friendly name is plumbed through createDownloadLink's downloadName option
+    assert "downloadName" in source
+
+
 def test_pipeline_uses_whisper_wav_converter(monkeypatch, tmp_path):
     """Pipeline calls convert_media_to_whisper_audio (16 kHz WAV), not convert_mp4_to_mp3."""
     import whisper_video_to_text.pipeline as pipeline_mod

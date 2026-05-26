@@ -119,6 +119,72 @@ def test_upload_supported_extensions_accepted(tmp_path, monkeypatch):
         assert "error" not in statuses, f"Extension {ext} was incorrectly rejected"
 
 
+def test_upload_result_includes_source_name(tmp_path, monkeypatch):
+    """The SSE result payload carries the original upload filename for friendly downloads."""
+    import whisper_video_to_text.web.views as views_mod
+    from whisper_video_to_text.pipeline import TranscriptionResult
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "uploads").mkdir()
+    (tmp_path / "transcripts").mkdir()
+
+    captured_result: list[dict] = []
+
+    def fake_set_result(jid, result):
+        captured_result.append(result)
+
+    upload = _make_upload_file("meeting-notes.m4a")
+
+    with (
+        patch.object(
+            views_mod,
+            "run_transcription",
+            return_value=TranscriptionResult(
+                text="hi", language="en", segments=[], rendered={"txt": "hi"}
+            ),
+        ),
+        patch.object(views_mod, "update_progress_sync"),
+        patch.object(views_mod, "set_result_sync", side_effect=fake_set_result),
+    ):
+        views_mod.run_transcription_task("job-friendly", file=upload, formats=["txt"])
+
+    assert len(captured_result) == 1
+    assert captured_result[0].get("source_name") == "meeting-notes.m4a"
+
+
+def test_url_result_has_no_source_name(tmp_path, monkeypatch):
+    """URL jobs don't carry a source_name in this pass (queue is upload-only)."""
+    import whisper_video_to_text.web.views as views_mod
+    from whisper_video_to_text.pipeline import TranscriptionResult
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "uploads").mkdir()
+    (tmp_path / "transcripts").mkdir()
+
+    captured_result: list[dict] = []
+
+    def fake_set_result(jid, result):
+        captured_result.append(result)
+
+    with (
+        patch.object(
+            views_mod,
+            "run_transcription",
+            return_value=TranscriptionResult(
+                text="hi", language="en", segments=[], rendered={"txt": "hi"}
+            ),
+        ),
+        patch.object(views_mod, "update_progress_sync"),
+        patch.object(views_mod, "set_result_sync", side_effect=fake_set_result),
+    ):
+        views_mod.run_transcription_task(
+            "job-url", url="https://example.com/video", formats=["txt"]
+        )
+
+    assert len(captured_result) == 1
+    assert captured_result[0].get("source_name") is None
+
+
 def test_transcribe_api_passes_uploaded_file_to_background_task():
     """Multipart uploads from the web form are forwarded to the worker task."""
     from fastapi.testclient import TestClient
