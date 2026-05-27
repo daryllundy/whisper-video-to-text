@@ -14,7 +14,7 @@ I needed reliable transcripts from videos, voice notes, and downloaded talks wit
 ## Features
 
 - **Local inference** — Whisper runs on your hardware; nothing leaves the machine.
-- **Multiple inputs** — local files (`.mp3 .wav .aif .aiff .mp4 .mov`) or YouTube URLs via `yt-dlp`.
+- **Multiple inputs** — common local audio/video files (`.mp3 .m4a .m4p .wav .mp4 .mov .webm .mkv .avi` and more) or YouTube URLs via `yt-dlp`.
 - **Multiple output formats** — plain text, timestamped text, SRT subtitles, WebVTT subtitles.
 - **Shared pipeline** — CLI and web UI call the same `run_transcription()` function; no duplicated logic.
 - **Progress streaming** — web UI streams live status via Server-Sent Events.
@@ -126,5 +126,6 @@ Named volumes keep transcripts and the Whisper model cache across container rest
 
 - **Single-process web UI.** The in-memory job store doesn't survive restarts or scale across workers. Suitable for local use; needs Redis or a database backend for anything beyond that.
 - **System ffmpeg required.** ffmpeg must be on the host PATH. Vendoring it would add substantial per-platform maintenance overhead.
+- **DRM-protected media.** Supported extensions still need to be decodable by ffmpeg. Encrypted `.m4p` files may fail even though unprotected `.m4p` audio is accepted.
 - **YouTube availability.** URL downloads depend on `yt-dlp` and current YouTube format availability. The format fallback handles common cases but cannot guarantee every URL will work.
 - **Transcription accuracy.** Whisper quality varies by model size, audio quality, and language. The `large` model is most accurate but requires significantly more memory and time.

@@ -2,18 +2,90 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from whisper_video_to_text.convert import SUPPORTED_MEDIA_EXTENSIONS
+from whisper_video_to_text.web.main import app
+
 ROOT = Path(__file__).parent.parent
 
 
 def test_web_upload_accepts_supported_media_formats():
-    template = ROOT / "whisper_video_to_text" / "web" / "templates" / "index.html"
-    source = template.read_text(encoding="utf-8")
+    response = TestClient(app).get("/")
+    source = response.text
 
+    assert response.status_code == 200
     assert "SOURCE MEDIA FILE" in source
-    for extension in [".mp3", ".wav", ".aif", ".aiff", ".mp4", ".mov"]:
+    for extension in sorted(SUPPORTED_MEDIA_EXTENSIONS):
         assert extension in source
+    assert "audio/*" in source
+    assert "video/*" in source
     assert "audio/mpeg" in source
     assert "video/quicktime" in source
+
+
+def test_web_page_exposes_drag_and_drop_upload_controls():
+    response = TestClient(app).get("/")
+    source = response.text
+
+    assert response.status_code == 200
+    assert 'id="drop-zone"' in source
+    assert 'data-media-extensions="' in source
+    assert 'id="drop-overlay"' in source
+    assert "DROP MEDIA FILE" in source
+    assert ".m4a" in source
+
+
+def test_web_javascript_binds_drag_and_drop_events():
+    source = (ROOT / "whisper_video_to_text" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function handleDrop" in source
+    assert "function enqueueFiles" in source
+    assert "document.addEventListener('dragenter', handleDragEnter)" in source
+    assert "document.addEventListener('drop', handleDrop)" in source
+
+
+def test_web_page_exposes_queue_controls():
+    response = TestClient(app).get("/")
+    source = response.text
+
+    assert response.status_code == 200
+    assert 'id="queue-list"' in source
+    assert 'id="queue-clear"' in source
+    assert "multiple" in source
+    # Per-row controls replace queue-level pause/resume and the standalone stop button.
+    assert 'id="queue-pause"' not in source
+    assert 'id="queue-resume"' not in source
+    assert 'id="stop-btn"' not in source
+
+
+def test_web_javascript_implements_queue_drain():
+    source = (ROOT / "whisper_video_to_text" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function processNext" in source
+    assert "function clearCompleted" in source
+    assert "function renderQueue" in source
+    assert "function stopQueueItem" in source
+    # Drain auto-starts on enqueue; no separate pause/resume.
+    assert "function pauseQueue" not in source
+    assert "function resumeQueue" not in source
+
+
+def test_web_javascript_supports_restart_and_friendly_names():
+    source = (ROOT / "whisper_video_to_text" / "web" / "static" / "app.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function restartQueueItem" in source
+    assert "function friendlyDownloadName" in source
+    # Restart button is wired and only on terminal-failure rows
+    assert "'RESTART'" in source
+    # Friendly name is plumbed through createDownloadLink's downloadName option
+    assert "downloadName" in source
 
 
 def test_pipeline_uses_whisper_wav_converter(monkeypatch, tmp_path):
@@ -27,7 +99,9 @@ def test_pipeline_uses_whisper_wav_converter(monkeypatch, tmp_path):
 
     converter_calls: list[str] = []
 
-    def fake_convert(input_path: str, output_file: str | None = None, verbose: bool = False):
+    def fake_convert(
+        input_path: str, output_file: str | None = None, verbose: bool = False, **kwargs
+    ):
         converter_calls.append(input_path)
         return audio_file
 

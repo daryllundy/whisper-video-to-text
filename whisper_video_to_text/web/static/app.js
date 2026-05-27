@@ -81,6 +81,241 @@ function stopTimer() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Queue model: client-side, one job in flight at a time.
+// ---------------------------------------------------------------------------
+
+const queue = [];
+let queueActive = null;
+const TERMINAL_ITEM_STATUSES = new Set(['complete', 'error', 'cancelled']);
+const ACTIVE_ITEM_STATUSES = new Set([
+  'starting', 'uploading', 'downloading', 'converting', 'transcribing', 'saving',
+]);
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function enqueueFiles(files) {
+  const rejected = [];
+  let added = 0;
+  for (const file of files) {
+    if (!isSupportedMediaFile(file)) {
+      rejected.push(`${file.name || 'file'} (${getFileExtension(file.name || '') || 'no ext'})`);
+      continue;
+    }
+    queue.push({
+      id: (crypto.randomUUID ? crypto.randomUUID() : `q-${Date.now()}-${Math.random()}`),
+      file,
+      status: 'waiting',
+      jobId: null,
+      formats: null,
+      sourceName: null,
+      error: null,
+    });
+    added += 1;
+  }
+  if (rejected.length > 0) {
+    showError(`Skipped ${rejected.length} unsupported file(s): ${rejected.join(', ')}`);
+  }
+  renderQueue();
+  resetDropZoneState();
+  if (added > 0) processNext();
+  return added;
+}
+
+function removeQueueItem(id) {
+  const idx = queue.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  if (queue[idx].status !== 'waiting') return;
+  queue.splice(idx, 1);
+  renderQueue();
+  resetDropZoneState();
+}
+
+function restartQueueItem(id) {
+  const item = queue.find(x => x.id === id);
+  if (!item) return;
+  if (item.status !== 'cancelled' && item.status !== 'error') return;
+  item.status = 'waiting';
+  item.jobId = null;
+  item.formats = null;
+  item.sourceName = null;
+  item.error = null;
+  renderQueue();
+  processNext();
+}
+
+function clearCompleted() {
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (TERMINAL_ITEM_STATUSES.has(queue[i].status)) queue.splice(i, 1);
+  }
+  renderQueue();
+  resetDropZoneState();
+}
+
+async function stopQueueItem(id) {
+  const item = queue.find(x => x.id === id);
+  if (!item || !item.jobId) return;
+  try {
+    await fetch(`/api/jobs/${encodeURIComponent(item.jobId)}/cancel`, { method: 'POST' });
+  } catch (err) {
+    showError(`Stop request failed: ${err.message}`);
+  }
+}
+
+function renderQueueControls() {
+  const summary = document.getElementById('queue-summary');
+  if (!summary) return;
+  const total = queue.length;
+  const waiting = queue.filter(x => x.status === 'waiting').length;
+  const done = queue.filter(x => x.status === 'complete').length;
+  summary.textContent = `${total} item${total === 1 ? '' : 's'} · ${waiting} waiting · ${done} done`;
+}
+
+function renderQueue() {
+  const list = document.getElementById('queue-list');
+  const empty = document.getElementById('queue-empty');
+  if (!list) return;
+  list.replaceChildren();
+  if (queue.length === 0) {
+    if (empty) empty.hidden = false;
+    renderQueueControls();
+    return;
+  }
+  if (empty) empty.hidden = true;
+  for (const item of queue) list.appendChild(renderQueueRow(item));
+  renderQueueControls();
+}
+
+function renderQueueRow(item) {
+  const card = document.createElement('div');
+  card.className = 'card queue-item';
+  card.dataset.itemId = item.id;
+  card.dataset.status = item.status;
+  card.setAttribute('role', 'listitem');
+
+  const row = document.createElement('div');
+  row.className = 'queue-item__row';
+
+  const info = document.createElement('div');
+  const name = document.createElement('div');
+  name.className = 'queue-item__name';
+  name.textContent = item.file.name;
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const parts = [formatBytes(item.file.size)];
+  meta.textContent = parts.filter(Boolean).join(' · ');
+  const statusBadge = document.createElement('span');
+  statusBadge.className = 'queue-item__status';
+  statusBadge.textContent = item.status;
+  info.append(name, meta, statusBadge);
+
+  const actions = document.createElement('div');
+  actions.className = 'queue-item__actions';
+
+  if (item.status === 'waiting') {
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'btn btn-compact';
+    rm.textContent = 'REMOVE';
+    rm.addEventListener('click', () => removeQueueItem(item.id));
+    actions.appendChild(rm);
+  } else if (ACTIVE_ITEM_STATUSES.has(item.status)) {
+    const stop = document.createElement('button');
+    stop.type = 'button';
+    stop.className = 'btn btn-compact';
+    stop.textContent = 'STOP';
+    stop.disabled = !item.jobId;
+    stop.addEventListener('click', () => stopQueueItem(item.id));
+    actions.appendChild(stop);
+  } else if (item.status === 'complete' && item.formats && item.jobId) {
+    const baseName = item.sourceName || item.file.name;
+    Object.keys(item.formats).forEach(ext => {
+      actions.appendChild(createDownloadLink(item.jobId, ext, {
+        compact: true,
+        downloadName: friendlyDownloadName(baseName, ext),
+      }));
+    });
+  } else if (item.status === 'error' || item.status === 'cancelled') {
+    if (item.error) {
+      const err = document.createElement('span');
+      err.className = 'meta error-text';
+      err.textContent = item.error;
+      actions.appendChild(err);
+    }
+    const restart = document.createElement('button');
+    restart.type = 'button';
+    restart.className = 'btn btn-compact';
+    restart.textContent = 'RESTART';
+    restart.addEventListener('click', () => restartQueueItem(item.id));
+    actions.appendChild(restart);
+  }
+
+  row.append(info, actions);
+  card.appendChild(row);
+  return card;
+}
+
+function collectFormSettings() {
+  const fd = new FormData();
+  const model = document.getElementById('model');
+  const language = document.getElementById('language');
+  const timestamps = document.getElementById('timestamps');
+  if (model) fd.set('model', model.value);
+  if (language && language.value) fd.set('language', language.value);
+  fd.set('timestamps', timestamps && timestamps.checked ? 'true' : 'false');
+  return fd;
+}
+
+async function processNext() {
+  if (queueActive) return;
+  const next = queue.find(x => x.status === 'waiting');
+  if (!next) {
+    renderQueueControls();
+    return;
+  }
+
+  queueActive = next;
+  next.status = 'starting';
+  renderQueue();
+
+  const data = collectFormSettings();
+  data.set('file', next.file);
+
+  try {
+    const res = await fetch('/api/transcribe', { method: 'POST', body: data });
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    const { job_id: jobId } = await res.json();
+    next.jobId = jobId;
+    showActiveJobUI(next);
+    listen(jobId, next);
+  } catch (err) {
+    next.status = 'error';
+    next.error = err.message;
+    queueActive = null;
+    renderQueue();
+    processNext();
+  }
+}
+
+function showActiveJobUI(item) {
+  const statusContainer = document.getElementById('status-container');
+  const status = document.getElementById('status');
+  const message = document.getElementById('message');
+  statusContainer.hidden = false;
+  status.textContent = 'STARTING';
+  status.dataset.state = 'queued';
+  document.getElementById('downloads').hidden = true;
+  document.getElementById('downloads').replaceChildren();
+  if (message) message.textContent = `Processing: ${item.file.name}`;
+  renderPhaseLadder(-1, {});
+  startTimer();
+}
+
 function showError(msg) {
   const el = document.getElementById('form-error');
   if (!el) return;
@@ -95,6 +330,123 @@ function clearError() {
   el.hidden = true;
 }
 
+function getFileExtension(filename) {
+  const dot = filename.lastIndexOf('.');
+  return dot >= 0 ? filename.slice(dot).toLowerCase() : '';
+}
+
+function supportedMediaExtensions() {
+  const dropZone = document.getElementById('drop-zone');
+  const raw = dropZone ? dropZone.dataset.mediaExtensions || '' : '';
+  return new Set(raw.split(',').map(ext => ext.trim().toLowerCase()).filter(Boolean));
+}
+
+function isSupportedMediaFile(file) {
+  const extension = getFileExtension(file.name || '');
+  return extension.length > 0 && supportedMediaExtensions().has(extension);
+}
+
+function setDropZoneState(state, message) {
+  const dropZone = document.getElementById('drop-zone');
+  const status = document.getElementById('drop-zone-status');
+  if (dropZone) {
+    if (state) dropZone.dataset.state = state;
+    else delete dropZone.dataset.state;
+  }
+  if (status && message) status.textContent = message;
+}
+
+function resetDropZoneState() {
+  const waiting = queue.filter(x => x.status === 'waiting').length;
+  if (waiting > 0) setDropZoneState('selected', `${waiting} IN QUEUE`);
+  else setDropZoneState('', 'OR CHOOSE FILES');
+}
+
+function clearFileInput() {
+  const fileInput = document.getElementById('file');
+  if (!fileInput) return;
+  fileInput.value = '';
+  resetDropZoneState();
+}
+
+function hasFileDrag(event) {
+  const types = event.dataTransfer ? Array.from(event.dataTransfer.types) : [];
+  return types.includes('Files');
+}
+
+let dragDepth = 0;
+
+function showDropOverlay() {
+  const overlay = document.getElementById('drop-overlay');
+  if (overlay) overlay.hidden = false;
+}
+
+function hideDropOverlay() {
+  const overlay = document.getElementById('drop-overlay');
+  if (overlay) overlay.hidden = true;
+}
+
+function handleDragEnter(event) {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  dragDepth += 1;
+  showDropOverlay();
+  setDropZoneState('active', 'DROP TO SELECT');
+}
+
+function handleDragOver(event) {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'copy';
+  setDropZoneState('active', 'DROP TO SELECT');
+}
+
+function handleDragLeave(event) {
+  if (!hasFileDrag(event)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) {
+    hideDropOverlay();
+    resetDropZoneState();
+  }
+}
+
+function handleDrop(event) {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  dragDepth = 0;
+  hideDropOverlay();
+  clearError();
+
+  const files = Array.from(event.dataTransfer.files || []);
+  if (files.length === 0) {
+    resetDropZoneState();
+    return;
+  }
+  enqueueFiles(files);
+}
+
+function handleFileInputChange(event) {
+  clearError();
+  const files = Array.from(event.target.files || []);
+  if (files.length === 0) {
+    resetDropZoneState();
+    return;
+  }
+  enqueueFiles(files);
+  event.target.value = '';
+}
+
+function bindDragAndDrop() {
+  const fileInput = document.getElementById('file');
+  if (fileInput) fileInput.addEventListener('change', handleFileInputChange);
+
+  document.addEventListener('dragenter', handleDragEnter);
+  document.addEventListener('dragover', handleDragOver);
+  document.addEventListener('dragleave', handleDragLeave);
+  document.addEventListener('drop', handleDrop);
+  resetDropZoneState();
+}
+
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme');
   const target = current === 'light' ? 'dark' : 'light';
@@ -104,13 +456,28 @@ function toggleTheme() {
   if (btn) btn.textContent = target === 'light' ? 'NIGHT MODE' : 'DAY MODE';
 }
 
-function createDownloadLink(jobId, ext, { compact = false } = {}) {
+function friendlyDownloadName(sourceName, ext) {
+  if (!sourceName) return null;
+  const dot = sourceName.lastIndexOf('.');
+  const stem = dot > 0 ? sourceName.slice(0, dot) : sourceName;
+  const slug = stem
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  if (!slug) return null;
+  return `${slug}-transcript.${ext}`;
+}
+
+function createDownloadLink(jobId, ext, { compact = false, downloadName = null } = {}) {
   const link = document.createElement('a');
   link.href = `/download/${encodeURIComponent(jobId)}/${encodeURIComponent(ext)}`;
   link.className = compact ? 'btn btn-download btn-download--compact' : 'btn btn-download';
   link.textContent = compact ? ext.toUpperCase() : `DOWNLOAD .${ext.toUpperCase()}`;
   link.target = '_blank';
   link.rel = 'noopener';
+  if (downloadName) link.download = downloadName;
   return link;
 }
 
@@ -118,18 +485,27 @@ async function startJob(e) {
   e.preventDefault();
   clearError();
 
-  const fileInput = document.getElementById('file');
   const urlInput = document.getElementById('url');
-  const hasFile = fileInput.files && fileInput.files.length > 0;
-  const hasUrl = urlInput.value.trim().length > 0;
+  const url = urlInput ? urlInput.value.trim() : '';
+  const hasQueuedFiles = queue.some(x => x.status === 'waiting');
 
-  if (!hasFile && !hasUrl) {
-    showError('Choose a file or paste a URL to begin.');
+  if (url && hasQueuedFiles) {
+    showError('Submit either a URL OR queued files, not both.');
     return;
   }
 
-  const form = document.getElementById('form');
-  const data = new FormData(form);
+  if (hasQueuedFiles) {
+    processNext();
+    return;
+  }
+
+  if (!url) {
+    showError('Drop files into the queue or paste a URL to begin.');
+    return;
+  }
+
+  const data = collectFormSettings();
+  data.set('url', url);
   const btn = document.getElementById('submit-btn');
   const originalText = btn.textContent;
   btn.textContent = 'INITIALIZING...';
@@ -159,7 +535,7 @@ async function startJob(e) {
   }
 }
 
-function listen(jobId) {
+function listen(jobId, queueItem = null) {
   const events = new EventSource(`/events/${jobId}`);
   const status = document.getElementById('status');
   const message = document.getElementById('message');
@@ -168,23 +544,41 @@ function listen(jobId) {
   const btn = document.getElementById('submit-btn');
   let lastPhaseIdx = -1;
 
+  const finishActive = () => {
+    events.close();
+    stopTimer();
+    btn.textContent = 'START TRANSCRIPTION';
+    btn.disabled = false;
+    if (queueItem) {
+      queueActive = null;
+      renderQueue();
+      processNext();
+    }
+  };
+
   events.onmessage = (ev) => {
     const data = JSON.parse(ev.data);
     const isComplete = data.status === 'complete';
     const isError = data.status === 'error';
+    const isCancelled = data.status === 'cancelled';
+    const isTerminal = isComplete || isError || isCancelled;
     const mapped = phaseIndexForStatus(data.status);
     if (mapped >= 0) lastPhaseIdx = mapped;
     const phaseIdx = mapped >= 0 ? mapped : lastPhaseIdx;
 
     let intraProgress = 0;
-    if (mapped >= 0 && !isComplete && !isError) {
+    if (mapped >= 0 && !isTerminal) {
       const start = PHASE_BOUNDARIES[mapped];
       const end = PHASE_BOUNDARIES[mapped + 1];
       const clamped = Math.max(start, Math.min(end, data.progress || start));
       intraProgress = ((clamped - start) / (end - start)) * 100;
     }
 
-    renderPhaseLadder(phaseIdx, { progress: intraProgress, complete: isComplete, errored: isError });
+    renderPhaseLadder(phaseIdx, {
+      progress: intraProgress,
+      complete: isComplete,
+      errored: isError || isCancelled,
+    });
 
     if (data.status) {
       status.textContent = data.status.toUpperCase();
@@ -196,17 +590,39 @@ function listen(jobId) {
       output.textContent = data.result.text;
     }
 
-    if (isComplete || isError) {
-      events.close();
-      stopTimer();
-      btn.textContent = 'START TRANSCRIPTION';
-      btn.disabled = false;
+    if (queueItem && data.status && !isTerminal) {
+      queueItem.status = data.status;
+      renderQueue();
+    }
+
+    if (isTerminal) {
+      if (queueItem) {
+        if (isComplete) {
+          queueItem.status = 'complete';
+          if (data.result) {
+            if (data.result.formats) queueItem.formats = data.result.formats;
+            if (data.result.source_name) queueItem.sourceName = data.result.source_name;
+          }
+        } else if (isError) {
+          queueItem.status = 'error';
+          queueItem.error = data.message || 'Transcription failed';
+        } else {
+          queueItem.status = 'cancelled';
+          queueItem.error = data.message || 'Cancelled';
+        }
+      }
+      finishActive();
     }
 
     if (isComplete && data.result && data.result.formats) {
+      const baseName = (queueItem && (queueItem.sourceName || queueItem.file.name))
+        || (data.result && data.result.source_name)
+        || null;
       downloads.replaceChildren();
       Object.keys(data.result.formats).forEach(ext => {
-        downloads.appendChild(createDownloadLink(jobId, ext));
+        downloads.appendChild(createDownloadLink(jobId, ext, {
+          downloadName: friendlyDownloadName(baseName, ext),
+        }));
       });
       downloads.hidden = false;
       document.body.classList.add('flash-success');
@@ -215,10 +631,11 @@ function listen(jobId) {
   };
 
   events.onerror = () => {
-    events.close();
-    stopTimer();
-    btn.textContent = 'START TRANSCRIPTION';
-    btn.disabled = false;
+    if (queueItem && !TERMINAL_ITEM_STATUSES.has(queueItem.status)) {
+      queueItem.status = 'error';
+      queueItem.error = 'Connection lost';
+    }
+    finishActive();
   };
 }
 
@@ -291,7 +708,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (themeBtn) themeBtn.textContent = current === 'light' ? 'NIGHT MODE' : 'DAY MODE';
 
   document.getElementById('form').addEventListener('submit', startJob);
+  bindDragAndDrop();
   themeBtn.addEventListener('click', toggleTheme);
   document.getElementById('history-btn').addEventListener('click', toggleHistory);
   document.getElementById('history-close').addEventListener('click', toggleHistory);
+
+  const clearQ = document.getElementById('queue-clear');
+  if (clearQ) clearQ.addEventListener('click', clearCompleted);
+  renderQueue();
 });

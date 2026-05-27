@@ -10,6 +10,9 @@ from typing import Optional
 jobs: dict[str, JobState] = {}
 
 
+TERMINAL_STATUSES = frozenset({"complete", "error", "cancelled"})
+
+
 class JobState:
     def __init__(self) -> None:
         self.progress: int = 0
@@ -17,6 +20,7 @@ class JobState:
         self.message: str = ""
         self.result: Optional[dict] = None  # noqa: UP045
         self.queue: asyncio.Queue = asyncio.Queue()
+        self.cancel_requested: bool = False
 
 
 def create_job() -> str:
@@ -29,6 +33,36 @@ def create_job() -> str:
 def get_job(job_id: str) -> Optional[JobState]:  # noqa: UP045
     """Get a job by ID, or None if not found."""
     return jobs.get(job_id)
+
+
+def request_cancel_sync(job_id: str) -> bool:
+    """Mark a job as cancel-requested. Returns False if job is unknown or terminal."""
+    job = get_job(job_id)
+    if not job or job.status in TERMINAL_STATUSES:
+        return False
+    job.cancel_requested = True
+    return True
+
+
+def is_cancel_requested(job_id: str) -> bool:
+    """Return True if cancellation has been requested for this job."""
+    job = get_job(job_id)
+    return bool(job and job.cancel_requested)
+
+
+def set_cancelled_sync(job_id: str, message: str = "Cancelled by user") -> None:
+    """Mark a job as cancelled and emit a terminal SSE update."""
+    job = get_job(job_id)
+    if not job:
+        return
+    job.status = "cancelled"
+    job.message = message
+    update = {"progress": job.progress, "status": "cancelled", "message": message}
+    try:
+        loop = asyncio.get_running_loop()
+        loop.call_soon_threadsafe(job.queue.put_nowait, update)
+    except RuntimeError:
+        job.queue.put_nowait(update)
 
 
 async def update_progress(job_id: str, progress: int, status: str, message: str = "") -> None:
@@ -107,5 +141,5 @@ async def progress_stream(job_id: str) -> AsyncIterator[dict]:
     while True:
         update = await job.queue.get()
         yield update
-        if update.get("status") == "complete":
+        if update.get("status") in TERMINAL_STATUSES:
             break

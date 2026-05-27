@@ -4,14 +4,17 @@ import sys
 import time
 from pathlib import Path
 
+from whisper_video_to_text.convert import supported_media_extensions_display
 from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 
 
 def main() -> None:
+    supported_formats = supported_media_extensions_display(with_dots=False)
+    supported_formats_with_dots = supported_media_extensions_display()
     parser = argparse.ArgumentParser(
         description="Convert media files to Whisper-ready audio and transcribe to text",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
 Examples:
   # Basic usage with local file
   python -m whisper_video_to_text video.mp4
@@ -33,7 +36,7 @@ Examples:
   python -m whisper_video_to_text video.mp4 --format srt --format vtt
 
 Supported local media formats:
-  mp3, wav, aif, aiff, mp4, mov
+  {supported_formats}
 
 Available Whisper models:
   tiny, base, small, medium, large
@@ -42,7 +45,7 @@ Available Whisper models:
 
     parser.add_argument(
         "input",
-        help="Media file path (.mp3, .wav, .aif, .aiff, .mp4, .mov) or video URL (with --download)",
+        help=f"Media file path ({supported_formats_with_dots}) or video URL (with --download)",
     )
     parser.add_argument("-o", "--output", help="Output text file (default: input_name.txt)")
     parser.add_argument(

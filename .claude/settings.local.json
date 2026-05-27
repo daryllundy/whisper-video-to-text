@@ -8,7 +8,22 @@
       "Bash(git commit:*)",
       "Bash(ruff check --fix .)",
       "Bash(ruff check .)",
-      "Bash(agg:*)"
+      "Bash(agg:*)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "Bash(python3 -c \"import sys, json; [print\\(x['name'], x['type'], x.get\\('size',''\\)\\) for x in json.load\\(sys.stdin\\)]\")",
+      "Bash(python3 -c \"import sys, json; [print\\(x['name'], x['type']\\) for x in json.load\\(sys.stdin\\)]\")",
+      "Bash(uv run *)",
+      "Bash(git stash *)",
+      "Bash(cp whisper_video_to_text/convert.py /tmp/convert_now.py)",
+      "Bash(cp /tmp/convert_main.py whisper_video_to_text/convert.py)",
+      "Bash(make lint *)",
+      "Bash(make typecheck *)",
+      "Bash(docker compose *)",
+      "Bash(ffmpeg -version)",
+      "Bash(curl -s -o /dev/null -w \"GET /  status=%{http_code} time=%{time_total}s\\\\n\" http://127.0.0.1:8765/)",
+      "Bash(sed -i.bak 's|http://127.0.0.1:8765|http://127.0.0.1:8000|g; s|Path\\(\"transcripts\"\\)|Path\\(\"transcripts_docker_check\"\\)|g' /tmp/smoke.py)",
+      "Bash(sed -i.bak2 's|examples/neuro-spicy-ai.MP4|/tmp/neuro.MP4|g' /tmp/smoke.py)"
     ],
     "deny": []
   }

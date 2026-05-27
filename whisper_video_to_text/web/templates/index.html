@@ -48,8 +48,14 @@
       <form id="form">
         <div class="card">
           <label for="file">SOURCE MEDIA FILE</label>
-          <input id="file" name="file" type="file"
-            accept=".mp3,.wav,.aif,.aiff,.mp4,.mov,audio/mpeg,audio/wav,audio/aiff,video/mp4,video/quicktime" />
+          <div id="drop-zone" class="drop-zone" data-media-extensions="{{ media_extensions }}">
+            <div class="drop-zone__copy">
+              <span class="drop-zone__title">DROP MEDIA FILE</span>
+              <span id="drop-zone-status" class="drop-zone__status">OR CHOOSE FILE</span>
+            </div>
+            <input id="file" name="file" type="file" multiple
+              accept="{{ media_accept }}" aria-describedby="drop-zone-status" />
+          </div>
 
           <div class="divider-text">OR</div>
 
@@ -87,8 +93,21 @@
       </form>
     </section>
 
+    <section class="grid-item reveal reveal-2" aria-labelledby="queue-heading">
+      <div id="queue-heading" class="meta section-heading">// 02. QUEUE</div>
+
+      <div class="card queue-card">
+        <div class="queue-controls">
+          <button id="queue-clear" class="btn btn-compact" type="button">CLEAR DONE</button>
+          <span id="queue-summary" class="meta queue-summary">0 items</span>
+        </div>
+        <div id="queue-empty" class="meta queue-empty">Drop or pick files to build a queue.</div>
+        <div id="queue-list" class="queue-list" role="list"></div>
+      </div>
+    </section>
+
     <section class="grid-item grid-item--output reveal reveal-3" aria-labelledby="output-heading">
-      <div id="output-heading" class="meta section-heading">// 02. DATA OUTPUT</div>
+      <div id="output-heading" class="meta section-heading">// 03. DATA OUTPUT</div>
 
       <div id="status-container" class="card status-card" hidden>
         <div class="status-card__header">
@@ -123,6 +142,13 @@
     </section>
 
   </main>
+
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <div class="drop-overlay__panel">
+      <div class="drop-overlay__title">DROP MEDIA FILE</div>
+      <div class="drop-overlay__meta">LOCAL TRANSCRIPTION QUEUE</div>
+    </div>
+  </div>
 
   <div id="history-modal" class="modal" hidden>
     <div class="modal__panel card">

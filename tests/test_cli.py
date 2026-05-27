@@ -4,6 +4,8 @@ import argparse
 import sys
 from types import ModuleType
 
+import pytest
+
 whisper_stub = ModuleType("whisper")
 whisper_stub.load_model = None
 sys.modules.setdefault("whisper", whisper_stub)
@@ -72,10 +74,16 @@ def test_cli_delegates_to_pipeline(monkeypatch, tmp_path):
     assert "txt" in req.formats
 
 
-def test_cli_help_mentions_supported_media_formats():
+def test_cli_help_mentions_supported_media_formats(monkeypatch, capsys):
     """Verify the user-facing CLI copy includes the expanded local input formats."""
-    source = cli.main.__code__.co_consts
-    help_text = "\n".join(str(item) for item in source)
+    monkeypatch.setattr(sys, "argv", ["whisper_video_to_text", "--help"])
 
-    for extension in ["mp3", "wav", "aif", "aiff", "mp4", "mov"]:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main()
+
+    assert exc_info.value.code == 0
+
+    help_text = capsys.readouterr().out
+
+    for extension in ["mp3", "m4a", "m4p", "wav", "aif", "aiff", "mp4", "mov"]:
         assert extension in help_text
