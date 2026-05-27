@@ -54,9 +54,7 @@ def test_pipeline_raises_when_cancelled_before_convert(patched_pipeline):
         )
 
 
-def test_pipeline_skips_output_writes_when_cancelled_after_transcribe(
-    patched_pipeline, tmp_path
-):
+def test_pipeline_skips_output_writes_when_cancelled_after_transcribe(patched_pipeline, tmp_path):
     """If cancel fires after transcribe but before rendering, no output files appear."""
     from whisper_video_to_text.pipeline import TranscriptionRequest, run_transcription
 
