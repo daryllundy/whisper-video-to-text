@@ -126,6 +126,35 @@ def test_uploaded_file_removed_when_pipeline_errors(tmp_path, monkeypatch):
     assert any(event[1] == "error" for event in progress_events)
 
 
+def test_oversize_upload_rejected_and_removed(tmp_path, monkeypatch):
+    """Uploads over the configured limit are rejected and partially written files removed."""
+    import whisper_video_to_text.web.views as views_mod
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "uploads").mkdir()
+    (tmp_path / "transcripts").mkdir()
+    monkeypatch.setattr(views_mod, "MAX_UPLOAD_BYTES", 10)
+
+    upload = _make_upload_file("oversize.mp4")
+    progress_events: list[tuple] = []
+
+    def fake_update(jid, pct, status, msg):
+        progress_events.append((pct, status, msg))
+
+    with (
+        patch.object(views_mod, "run_transcription") as mock_run,
+        patch.object(views_mod, "update_progress_sync", side_effect=fake_update),
+        patch.object(views_mod, "set_result_sync"),
+    ):
+        views_mod.run_transcription_task("job-oversize", file=upload, formats=["txt"])
+
+    mock_run.assert_not_called()
+    error_events = [event for event in progress_events if event[1] == "error"]
+    assert len(error_events) == 1
+    assert "upload limit" in error_events[0][2]
+    assert not any((tmp_path / "uploads").iterdir())
+
+
 def test_upload_supported_extensions_accepted(tmp_path, monkeypatch):
     """All supported media extensions pass validation."""
     import whisper_video_to_text.web.views as views_mod
@@ -245,3 +274,51 @@ def test_transcribe_api_passes_uploaded_file_to_background_task():
     assert calls[0]["url"] is None
     assert calls[0]["model"] == "tiny"
     assert calls[0]["timestamps"] is True
+
+
+def test_transcribe_api_coerces_invalid_model_to_base():
+    """Invalid model values are replaced with the safe default."""
+    from fastapi.testclient import TestClient
+
+    import whisper_video_to_text.web.views as views_mod
+    from whisper_video_to_text.web.main import app
+
+    calls: list[dict] = []
+
+    def fake_task(job_id, **kwargs):
+        calls.append({"job_id": job_id, **kwargs})
+
+    with patch.object(views_mod, "run_transcription_task", side_effect=fake_task):
+        response = TestClient(app).post(
+            "/api/transcribe",
+            files={"file": ("clip.mp3", b"fake media", "audio/mpeg")},
+            data={"model": "/etc/passwd"},
+        )
+
+    assert response.status_code == 200
+    assert calls
+    assert calls[0]["model"] == "base"
+
+
+def test_transcribe_api_passes_through_valid_model():
+    """Allowed model values are forwarded unchanged."""
+    from fastapi.testclient import TestClient
+
+    import whisper_video_to_text.web.views as views_mod
+    from whisper_video_to_text.web.main import app
+
+    calls: list[dict] = []
+
+    def fake_task(job_id, **kwargs):
+        calls.append({"job_id": job_id, **kwargs})
+
+    with patch.object(views_mod, "run_transcription_task", side_effect=fake_task):
+        response = TestClient(app).post(
+            "/api/transcribe",
+            files={"file": ("clip.mp3", b"fake media", "audio/mpeg")},
+            data={"model": "small"},
+        )
+
+    assert response.status_code == 200
+    assert calls
+    assert calls[0]["model"] == "small"

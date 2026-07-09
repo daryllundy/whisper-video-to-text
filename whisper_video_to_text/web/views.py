@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import shutil
 from collections.abc import AsyncGenerator
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +28,9 @@ from whisper_video_to_text.web.progress import (
     set_result_sync,
     update_progress_sync,
 )
+
+ALLOWED_MODELS = frozenset({"tiny", "base", "small", "medium", "large"})
+MAX_UPLOAD_BYTES = int(os.environ.get("WVTT_MAX_UPLOAD_BYTES", str(4 * 1024**3)))  # 4 GiB
 
 # Ensure uploads directory exists at module initialization
 os.makedirs("uploads", exist_ok=True)
@@ -167,8 +169,22 @@ def run_transcription_task(
                 return
             update_progress_sync(job_id, 5, "uploading", "Saving uploaded file...")
             uploaded_path = Path("uploads") / f"{job_id}{suffix}"
+            written = 0
             with open(uploaded_path, "wb") as f_out:
-                shutil.copyfileobj(file.file, f_out)
+                while True:
+                    chunk = file.file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    written += len(chunk)
+                    if written > MAX_UPLOAD_BYTES:
+                        update_progress_sync(
+                            job_id,
+                            100,
+                            "error",
+                            f"File exceeds the {MAX_UPLOAD_BYTES // (1024**2)} MB upload limit",
+                        )
+                        return
+                    f_out.write(chunk)
             source = str(uploaded_path)
             download = False
             source_name = Path(file.filename or "").name or None
@@ -236,6 +252,8 @@ async def transcribe_api(
     url: str | None = _url if isinstance(_url, str) else None
     _model = form.get("model", "base")
     model: str = _model if isinstance(_model, str) else "base"
+    if model not in ALLOWED_MODELS:
+        model = "base"
     _language = form.get("language")
     language: str | None = _language if isinstance(_language, str) and _language else None
     formats: list[str] = [f for f in form.getlist("formats") if isinstance(f, str)] or ["txt"]

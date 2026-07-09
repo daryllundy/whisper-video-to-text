@@ -65,6 +65,8 @@ uv run python -m whisper_video_to_text.web.main
 # → http://localhost:8000
 ```
 
+Binds to 127.0.0.1 by default; set HOST=0.0.0.0 to expose on your network.
+
 ![Web interface](docs/images/web-ui-main.png)
 ![Completed transcription](docs/images/web-ui-result.png)
 
