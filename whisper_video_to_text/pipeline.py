@@ -72,7 +72,9 @@ def run_transcription(
         if request.download:
             check_cancelled()
             report(10, "downloading", "Downloading video...")
-            media_path = download_video(request.source, output_dir=tempdir)
+            media_path = download_video(
+                request.source, output_dir=tempdir, should_cancel=should_cancel
+            )
 
         # Normalize to 16 kHz mono WAV
         check_cancelled()

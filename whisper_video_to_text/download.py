@@ -1,10 +1,16 @@
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
+from typing import Callable, Optional
 
 from tqdm import tqdm
 
+from whisper_video_to_text.convert import _terminate_process
+from whisper_video_to_text.errors import TranscriptionCancelled
+
+DOWNLOAD_TIMEOUT_SECONDS: Optional[float] = 1800.0
 PROGRESSIVE_MP4_FORMAT = (
     "best[ext=mp4][vcodec!=none][acodec!=none]/" "best[vcodec!=none][acodec!=none]/best"
 )
@@ -64,7 +70,37 @@ def _filename_from_yt_dlp_output(stdout: str, output_dir: str) -> str:
     raise ValueError("Could not determine downloaded filename")
 
 
-def download_video(url: str, output_dir: str = ".") -> str:
+def _run_yt_dlp(
+    cmd: list[str],
+    should_cancel: Optional[Callable[[], bool]] = None,
+    timeout: Optional[float] = DOWNLOAD_TIMEOUT_SECONDS,
+) -> "subprocess.CompletedProcess[str]":
+    """Run yt-dlp, polling for cancellation and raising on a nonzero exit."""
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    deadline = None if timeout is None else time.monotonic() + timeout
+    while True:
+        if should_cancel and should_cancel():
+            _terminate_process(process, None)
+            raise TranscriptionCancelled()
+        if deadline is not None and time.monotonic() > deadline:
+            _terminate_process(process, None)
+            assert timeout is not None
+            raise subprocess.TimeoutExpired(cmd, timeout)
+        try:
+            stdout, stderr = process.communicate(timeout=0.5)
+            break
+        except subprocess.TimeoutExpired:
+            continue
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, cmd, output=stdout, stderr=stderr)
+    return subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
+
+
+def download_video(
+    url: str,
+    output_dir: str = ".",
+    should_cancel: Optional[Callable[[], bool]] = None,
+) -> str:
     """
     Download video from URL using yt-dlp, with a progress bar.
 
@@ -85,7 +121,7 @@ def download_video(url: str, output_dir: str = ".") -> str:
             bar_format = "{l_bar}{bar} [time left: {remaining}]"
             with tqdm(total=1, desc="yt-dlp", bar_format=bar_format) as pbar:
                 logging.info(f"Trying yt-dlp {attempt_name} format selection")
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                result = _run_yt_dlp(cmd, should_cancel=should_cancel)
                 pbar.update(1)
             return _filename_from_yt_dlp_output(result.stdout, output_dir)
         except subprocess.CalledProcessError as e:
