@@ -1,8 +1,28 @@
 import logging
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
 import whisper
+
+_model_cache_lock = threading.Lock()
+_model_cache: "dict[str, Any]" = {}  # holds at most one entry: {model_name: model}
+
+
+def _load_model_cached(model_name: str) -> Any:
+    """Return the Whisper model, loading it once and evicting on model switch.
+
+    Single-entry by design: switching models drops the previous one so peak
+    memory stays bounded to one loaded model.
+    """
+    with _model_cache_lock:
+        if model_name in _model_cache:
+            return _model_cache[model_name]
+        _model_cache.clear()
+        logging.info(f"Loading Whisper model '{model_name}'...")
+        model = whisper.load_model(model_name)
+        _model_cache[model_name] = model
+        return model
 
 
 def transcribe_audio(
@@ -25,8 +45,7 @@ def transcribe_audio(
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_file}")
 
-    logging.info(f"Loading Whisper model '{model_name}'...")
-    model = whisper.load_model(model_name)
+    model = _load_model_cached(model_name)
 
     logging.info(f"Transcribing {audio_path.name}...")
 
