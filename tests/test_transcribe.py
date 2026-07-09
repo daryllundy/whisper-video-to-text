@@ -61,14 +61,13 @@ def test_transcribe_audio_missing_file(tmp_path):
         transcribe.transcribe_audio(str(audio_file))
 
 
-def test_save_transcription(tmp_path):
-    output_file = tmp_path / "out.txt"
+def test_render_txt_with_timestamps():
     transcription = {
         "text": "hello world",
         "segments": [{"start": 0, "end": 2, "text": "hello world"}],
         "language": "en",
     }
-    transcribe.save_transcription(transcription, str(output_file), include_timestamps=True)
-    content = output_file.read_text()
-    assert "hello world" in content
-    assert "TRANSCRIPTION WITH TIMESTAMPS" in content
+
+    content = transcribe.render_txt(transcription, include_timestamps=True)
+
+    assert content == "[0.00s] hello world"

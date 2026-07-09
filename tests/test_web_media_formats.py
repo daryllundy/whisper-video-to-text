@@ -89,7 +89,7 @@ def test_web_javascript_supports_restart_and_friendly_names():
 
 
 def test_pipeline_uses_whisper_wav_converter(monkeypatch, tmp_path):
-    """Pipeline calls convert_media_to_whisper_audio (16 kHz WAV), not convert_mp4_to_mp3."""
+    """Pipeline calls convert_media_to_whisper_audio to produce 16 kHz WAV."""
     import whisper_video_to_text.pipeline as pipeline_mod
 
     input_file = tmp_path / "input.mp4"

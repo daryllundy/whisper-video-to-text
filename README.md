@@ -83,7 +83,7 @@ flowchart LR
 
 `pipeline.py` composes the four steps into a single `run_transcription(request, progress)` call. Both `cli.py` and `web/views.py` use it — there is no separate transcription logic in the web layer. The web layer adds FastAPI routing, file upload handling, SSE progress streaming (`web/progress.py`), and Jinja2 rendering.
 
-`render_srt`, `render_vtt`, and `render_txt` in `transcribe.py` return strings; `save_srt` and `save_vtt` write those strings to disk. The render functions are pure and testable without a filesystem.
+`render_srt`, `render_vtt`, and `render_txt` in `transcribe.py` return strings. The pipeline writes requested formats to disk, while the render functions remain pure and testable without a filesystem.
 
 ## Design Decisions
 

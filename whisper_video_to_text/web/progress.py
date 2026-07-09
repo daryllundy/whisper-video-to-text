@@ -93,16 +93,6 @@ def set_cancelled_sync(job_id: str, message: str = "Cancelled by user") -> None:
     _schedule_cleanup(job_id, job)
 
 
-async def update_progress(job_id: str, progress: int, status: str, message: str = "") -> None:
-    """Update job progress (async version for use from async context)."""
-    job = get_job(job_id)
-    if job:
-        job.progress = progress
-        job.status = status
-        job.message = message
-        await job.queue.put({"progress": progress, "status": status, "message": message})
-
-
 def update_progress_sync(job_id: str, progress: int, status: str, message: str = "") -> None:
     """Update job progress (sync version for use from background threads).
 
@@ -117,22 +107,6 @@ def update_progress_sync(job_id: str, progress: int, status: str, message: str =
         _emit_threadsafe(job, {"progress": progress, "status": status, "message": message})
         if status in TERMINAL_STATUSES:
             _schedule_cleanup(job_id, job)
-
-
-async def set_result(job_id: str, result: dict) -> None:
-    """Set the final result for a job (async version)."""
-    job = get_job(job_id)
-    if job:
-        job.result = result
-        job.status = "complete"
-        await job.queue.put(
-            {
-                "progress": 100,
-                "status": "complete",
-                "message": "Transcription complete",
-                "result": result,
-            }
-        )
 
 
 def set_result_sync(job_id: str, result: dict) -> None:

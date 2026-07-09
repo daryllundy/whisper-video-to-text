@@ -55,47 +55,6 @@ def transcribe_audio(
     return result
 
 
-def save_transcription(
-    transcription: dict[str, Any], output_file: str, include_timestamps: bool = False
-) -> None:
-    """
-    Save transcription to text file.
-
-    Args:
-        transcription: The transcription result.
-        output_file: Path to the output text file.
-        include_timestamps: Whether to include timestamps in the output.
-    """
-    output_path = Path(output_file)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        if include_timestamps:
-            f.write("TRANSCRIPTION WITH TIMESTAMPS\n")
-            f.write("=" * 50 + "\n\n")
-
-            for segment in transcription["segments"]:
-                start = segment["start"]
-                end = segment["end"]
-                text = segment["text"].strip()
-
-                start_time = f"{int(start//60):02d}:{int(start%60):02d}"
-                end_time = f"{int(end//60):02d}:{int(end%60):02d}"
-
-                f.write(f"[{start_time} - {end_time}] {text}\n")
-        else:
-            f.write("TRANSCRIPTION\n")
-            f.write("=" * 50 + "\n\n")
-            f.write(transcription["text"].strip())
-
-        f.write("\n\n" + "=" * 50 + "\n")
-        f.write("METADATA\n")
-        f.write(f"Language: {transcription.get('language', 'auto-detected')}\n")
-        if "segments" in transcription:
-            f.write(f"Duration: {transcription['segments'][-1]['end']:.1f} seconds\n")
-
-    logging.info(f"✓ Transcription saved to: {output_path}")
-
-
 def render_txt(transcription: dict[str, Any], include_timestamps: bool = False) -> str:
     """Return plain-text transcription, optionally prefixed with segment timestamps."""
     if include_timestamps and transcription.get("segments"):
@@ -128,20 +87,6 @@ def render_vtt(transcription: dict[str, Any]) -> str:
         text = seg["text"].strip()
         lines += [f"{_format_vtt_time(start)} --> {_format_vtt_time(end)}", text, ""]
     return "\n".join(lines)
-
-
-def save_srt(transcription: dict[str, Any], output_file: str) -> None:
-    output_path = Path(output_file)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(render_srt(transcription))
-    logging.info(f"✓ SRT saved to: {output_path}")
-
-
-def save_vtt(transcription: dict[str, Any], output_file: str) -> None:
-    output_path = Path(output_file)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(render_vtt(transcription))
-    logging.info(f"✓ VTT saved to: {output_path}")
 
 
 def _format_time(seconds: float, ms_sep: str = ",") -> str:

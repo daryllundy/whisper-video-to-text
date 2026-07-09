@@ -159,20 +159,6 @@ class TestFfmpegOptionalDependency:
         assert hasattr(convert, "HAS_FFMPEG_PYTHON")
         assert isinstance(convert.HAS_FFMPEG_PYTHON, bool)
 
-    def test_ffmpeg_import_at_module_level(self):
-        """Verify ffmpeg is imported at module level, not inside function."""
-        from whisper_video_to_text import convert
-
-        source = inspect.getsource(convert)
-        # Find the function source
-        func_source = inspect.getsource(convert.convert_mp4_to_mp3)
-
-        # ffmpeg import should be at module level, not in function
-        assert "import ffmpeg" in source
-        # The function should use the flag, not import ffmpeg
-        assert "import ffmpeg" not in func_source
-        assert "HAS_FFMPEG_PYTHON" in func_source
-
 
 class TestWebModuleTypeHints:
     """Test that web module functions have type hints."""

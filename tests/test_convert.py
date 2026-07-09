@@ -1,5 +1,4 @@
 import io
-import subprocess
 from unittest import mock
 
 import pytest
@@ -96,30 +95,3 @@ def test_convert_media_to_whisper_audio_default_wav_path_does_not_overwrite_inpu
         result = convert.convert_media_to_whisper_audio(str(input_file), verbose=False)
 
     assert result == tmp_path / "input-whisper.wav"
-
-
-def test_convert_mp4_to_mp3_success(tmp_path):
-    input_file = tmp_path / "input.mp4"
-    input_file.write_text("dummy")  # create dummy file
-
-    output_file = tmp_path / "output.mp3"
-
-    with mock.patch("subprocess.Popen", side_effect=_FakePopen()):
-        result = convert.convert_mp4_to_mp3(str(input_file), str(output_file), verbose=False)
-        assert result == output_file
-
-
-def test_convert_mp4_to_mp3_missing_file(tmp_path):
-    input_file = tmp_path / "missing.mp4"
-    with pytest.raises(FileNotFoundError):
-        convert.convert_mp4_to_mp3(str(input_file))
-
-
-def test_convert_mp4_to_mp3_failure(tmp_path):
-    input_file = tmp_path / "input.mp4"
-    input_file.write_text("dummy")
-    output_file = tmp_path / "output.mp3"
-
-    with mock.patch("subprocess.Popen", side_effect=_FakePopen(returncode=1)):
-        with pytest.raises(subprocess.CalledProcessError):
-            convert.convert_mp4_to_mp3(str(input_file), str(output_file))
