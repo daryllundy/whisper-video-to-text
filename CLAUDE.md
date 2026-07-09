@@ -90,6 +90,11 @@ The page is a **client-side sequential queue** — one job in flight at a time. 
 
 `docker-compose.yml` mounts named volumes for `transcripts`, `uploads`, and the Whisper / yt-dlp caches at `/home/appuser/.cache/`. `docker-compose.dev.yml` is an override that bind-mounts `whisper_video_to_text/` and `tests/` into the container and runs uvicorn with `--reload` for live development.
 
+## Feature planning workflow
+
+- **Always use the `codex:codex-rescue` agent to build out feature plans.** When a feature is being planned, delegate the plan build-out to Codex by launching the `codex:codex-rescue` subagent (Agent tool, `subagent_type: "codex:codex-rescue"`) rather than drafting the implementation plan solo.
+- **When a plan is complete, commit the change and push to origin.** Commit only the files belonging to the plan (Conventional Commits, as below), then `git push origin`.
+
 ## Behavioral guardrails
 
 Distilled from [andrej-karpathy-skills](https://github.com/daryllundy/andrej-karpathy-skills) — only the parts that add signal over Claude Code's built-in defaults.
