@@ -67,11 +67,14 @@ def test_progress_stream_ends_after_complete_result():
     async def scenario():
         job_id = create_job()
         try:
+            stream = progress_stream(job_id)
+            first_update = asyncio.create_task(stream.__anext__())
+            await asyncio.sleep(0)
+
             update_progress_sync(job_id, 50, "transcribing", "halfway")
             set_result_sync(job_id, {"text": "hi"})
 
-            stream = progress_stream(job_id)
-            first = await asyncio.wait_for(stream.__anext__(), timeout=2)
+            first = await asyncio.wait_for(first_update, timeout=2)
             second = await asyncio.wait_for(stream.__anext__(), timeout=2)
 
             assert first == {
@@ -94,11 +97,14 @@ def test_progress_stream_ends_after_cancelled_status():
     async def scenario():
         job_id = create_job()
         try:
+            stream = progress_stream(job_id)
+            first_update = asyncio.create_task(stream.__anext__())
+            await asyncio.sleep(0)
+
             update_progress_sync(job_id, 50, "transcribing", "halfway")
             set_cancelled_sync(job_id)
 
-            stream = progress_stream(job_id)
-            first = await asyncio.wait_for(stream.__anext__(), timeout=2)
+            first = await asyncio.wait_for(first_update, timeout=2)
             second = await asyncio.wait_for(stream.__anext__(), timeout=2)
 
             assert first == {
@@ -197,5 +203,82 @@ def test_create_job_outside_loop_buffers_update():
             "status": "converting",
             "message": "hi",
         }
+    finally:
+        progress.jobs.pop(job_id, None)
+
+
+def test_progress_stream_replays_complete_result():
+    async def scenario():
+        job_id = create_job()
+        try:
+            live_stream = progress_stream(job_id)
+            live_update = asyncio.create_task(live_stream.__anext__())
+            await asyncio.sleep(0)
+
+            set_result_sync(job_id, {"text": "hi"})
+            assert (await asyncio.wait_for(live_update, timeout=2))["status"] == "complete"
+            with pytest.raises(StopAsyncIteration):
+                await asyncio.wait_for(live_stream.__anext__(), timeout=2)
+
+            async def collect_replay():
+                return [update async for update in progress_stream(job_id)]
+
+            replay = await asyncio.wait_for(collect_replay(), timeout=2)
+            assert len(replay) == 1
+            assert replay[0]["status"] == "complete"
+            assert replay[0]["result"] == {"text": "hi"}
+        finally:
+            progress.jobs.pop(job_id, None)
+
+    asyncio.run(scenario())
+
+
+def test_progress_stream_replays_error():
+    async def scenario():
+        job_id = create_job()
+        try:
+            update_progress_sync(job_id, 100, "error", "boom")
+
+            async def collect_replay():
+                return [update async for update in progress_stream(job_id)]
+
+            replay = await asyncio.wait_for(collect_replay(), timeout=2)
+            assert len(replay) == 1
+            assert replay[0] == {
+                "progress": 100,
+                "status": "error",
+                "message": "boom",
+            }
+        finally:
+            progress.jobs.pop(job_id, None)
+
+    asyncio.run(scenario())
+
+
+def test_terminal_job_is_removed_after_retention_period(monkeypatch):
+    monkeypatch.setattr(progress, "JOB_RETENTION_SECONDS", 0.05)
+
+    async def scenario():
+        job_id = create_job()
+        try:
+            set_result_sync(job_id, {"text": "hi"})
+            await asyncio.sleep(0.2)
+            assert get_job(job_id) is None
+        finally:
+            progress.jobs.pop(job_id, None)
+
+    asyncio.run(scenario())
+
+
+def test_terminal_job_without_loop_is_not_scheduled_for_cleanup():
+    job_id = create_job()
+    try:
+        job = get_job(job_id)
+        assert job is not None
+        assert job.loop is None
+
+        set_result_sync(job_id, {"text": "hi"})
+
+        assert get_job(job_id) is job
     finally:
         progress.jobs.pop(job_id, None)

@@ -631,11 +631,16 @@ function listen(jobId, queueItem = null) {
   };
 
   events.onerror = () => {
-    if (queueItem && !TERMINAL_ITEM_STATUSES.has(queueItem.status)) {
-      queueItem.status = 'error';
-      queueItem.error = 'Connection lost';
+    // EventSource auto-reconnects on transient errors; with server-side
+    // terminal-state replay, a reconnect after completion still terminates
+    // cleanly. Only give up when the browser has permanently closed it.
+    if (events.readyState === EventSource.CLOSED) {
+      if (queueItem && !TERMINAL_ITEM_STATUSES.has(queueItem.status)) {
+        queueItem.status = 'error';
+        queueItem.error = 'Connection lost';
+      }
+      finishActive();
     }
-    finishActive();
   };
 }
 

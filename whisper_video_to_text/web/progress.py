@@ -11,6 +11,7 @@ jobs: dict[str, JobState] = {}
 
 
 TERMINAL_STATUSES = frozenset({"complete", "error", "cancelled"})
+JOB_RETENTION_SECONDS = 600.0
 
 
 class JobState:
@@ -54,6 +55,17 @@ def _emit_threadsafe(job: JobState, update: dict) -> None:
         job.queue.put_nowait(update)
 
 
+def _schedule_cleanup(job_id: str, job: JobState) -> None:
+    """Drop the job from the registry after a grace period (bounds memory)."""
+    loop = job.loop
+    if loop is not None and not loop.is_closed():
+
+        def schedule() -> None:
+            loop.call_later(JOB_RETENTION_SECONDS, jobs.pop, job_id, None)
+
+        loop.call_soon_threadsafe(schedule)
+
+
 def request_cancel_sync(job_id: str) -> bool:
     """Mark a job as cancel-requested. Returns False if job is unknown or terminal."""
     job = get_job(job_id)
@@ -78,6 +90,7 @@ def set_cancelled_sync(job_id: str, message: str = "Cancelled by user") -> None:
     job.message = message
     update = {"progress": job.progress, "status": "cancelled", "message": message}
     _emit_threadsafe(job, update)
+    _schedule_cleanup(job_id, job)
 
 
 async def update_progress(job_id: str, progress: int, status: str, message: str = "") -> None:
@@ -102,6 +115,8 @@ def update_progress_sync(job_id: str, progress: int, status: str, message: str =
         job.status = status
         job.message = message
         _emit_threadsafe(job, {"progress": progress, "status": status, "message": message})
+        if status in TERMINAL_STATUSES:
+            _schedule_cleanup(job_id, job)
 
 
 async def set_result(job_id: str, result: dict) -> None:
@@ -125,6 +140,7 @@ def set_result_sync(job_id: str, result: dict) -> None:
     job = get_job(job_id)
     if job:
         job.result = result
+        job.progress = 100
         job.status = "complete"
         update = {
             "progress": 100,
@@ -133,12 +149,23 @@ def set_result_sync(job_id: str, result: dict) -> None:
             "result": result,
         }
         _emit_threadsafe(job, update)
+        _schedule_cleanup(job_id, job)
+
+
+def _snapshot(job: JobState) -> dict:
+    update: dict = {"progress": job.progress, "status": job.status, "message": job.message}
+    if job.status == "complete" and job.result is not None:
+        update["result"] = job.result
+    return update
 
 
 async def progress_stream(job_id: str) -> AsyncIterator[dict]:
-    """Stream progress updates for a job."""
+    """Stream progress updates for a job; replays terminal state on reconnect."""
     job = get_job(job_id)
     if not job:
+        return
+    if job.status in TERMINAL_STATUSES:
+        yield _snapshot(job)
         return
     while True:
         update = await job.queue.get()
