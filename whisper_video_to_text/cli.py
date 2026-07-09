@@ -39,7 +39,7 @@ Supported local media formats:
   {supported_formats}
 
 Available Whisper models:
-  tiny, base, small, medium, large
+  tiny, base, small, medium, large, turbo
         """,
     )
 
@@ -52,7 +52,7 @@ Available Whisper models:
         "-m",
         "--model",
         default="base",
-        choices=["tiny", "base", "small", "medium", "large"],
+        choices=["tiny", "base", "small", "medium", "large", "turbo"],
         help="Whisper model to use (default: base)",
     )
     parser.add_argument("-l", "--language", help="Language code (e.g., en, es, fr)")

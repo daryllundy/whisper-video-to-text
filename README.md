@@ -49,7 +49,7 @@ whisper_video_to_text audio.wav --timestamps
 
 | Flag | Description |
 |------|-------------|
-| `--model` | Whisper model: `tiny` `base` `small` `medium` `large` (default: `base`) |
+| `--model` | Whisper model: `tiny` `base` `small` `medium` `large` `turbo` (default: `base`) |
 | `--language` | Language code, e.g. `en`, `es`, `fr` |
 | `--format` | Output format(s): `txt` `srt` `vtt` — repeatable |
 | `--timestamps` | Prefix each segment with its start time |

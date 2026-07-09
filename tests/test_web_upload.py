@@ -312,13 +312,15 @@ def test_transcribe_api_passes_through_valid_model():
     def fake_task(job_id, **kwargs):
         calls.append({"job_id": job_id, **kwargs})
 
-    with patch.object(views_mod, "run_transcription_task", side_effect=fake_task):
-        response = TestClient(app).post(
-            "/api/transcribe",
-            files={"file": ("clip.mp3", b"fake media", "audio/mpeg")},
-            data={"model": "small"},
-        )
+    for model in ("small", "turbo"):
+        calls.clear()
+        with patch.object(views_mod, "run_transcription_task", side_effect=fake_task):
+            response = TestClient(app).post(
+                "/api/transcribe",
+                files={"file": ("clip.mp3", b"fake media", "audio/mpeg")},
+                data={"model": model},
+            )
 
-    assert response.status_code == 200
-    assert calls
-    assert calls[0]["model"] == "small"
+        assert response.status_code == 200
+        assert calls
+        assert calls[0]["model"] == model

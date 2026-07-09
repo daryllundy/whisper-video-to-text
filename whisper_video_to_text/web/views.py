@@ -29,7 +29,7 @@ from whisper_video_to_text.web.progress import (
     update_progress_sync,
 )
 
-ALLOWED_MODELS = frozenset({"tiny", "base", "small", "medium", "large"})
+ALLOWED_MODELS = frozenset({"tiny", "base", "small", "medium", "large", "turbo"})
 MAX_UPLOAD_BYTES = int(os.environ.get("WVTT_MAX_UPLOAD_BYTES", str(4 * 1024**3)))  # 4 GiB
 
 # Ensure uploads directory exists at module initialization
