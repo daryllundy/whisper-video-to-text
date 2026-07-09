@@ -1,12 +1,4 @@
-"""Tests for deeper refactor tasks from PROJECT_IMPROVEMENTS.md.
-
-These tests verify that all 5 deeper refactor tasks have been implemented correctly:
-1. Sync/async cleanup in run_transcription_task
-2. formats/timestamps implementation in web API
-3. CLI output directory change
-4. ffmpeg-python optional dependency handling
-5. Type hints in web module
-"""
+"""Regression tests for the shared pipeline and web task refactor."""
 
 import inspect
 from typing import get_type_hints

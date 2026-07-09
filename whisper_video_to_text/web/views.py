@@ -148,6 +148,7 @@ def run_transcription_task(
         formats = ["txt"]
 
     source_name: str | None = None
+    uploaded_path: Path | None = None
 
     try:
         # Resolve source: save upload to disk, or pass URL directly to pipeline
@@ -165,10 +166,10 @@ def run_transcription_task(
                 update_progress_sync(job_id, 100, "error", msg)
                 return
             update_progress_sync(job_id, 5, "uploading", "Saving uploaded file...")
-            dest = os.path.join("uploads", f"{job_id}{suffix}")
-            with open(dest, "wb") as f_out:
+            uploaded_path = Path("uploads") / f"{job_id}{suffix}"
+            with open(uploaded_path, "wb") as f_out:
                 shutil.copyfileobj(file.file, f_out)
-            source = dest
+            source = str(uploaded_path)
             download = False
             source_name = Path(file.filename or "").name or None
         else:
@@ -210,6 +211,12 @@ def run_transcription_task(
     except Exception as e:
         logging.exception(f"Transcription error for job {job_id}: {e}")
         update_progress_sync(job_id, 100, "error", f"Error: {e}")
+    finally:
+        if uploaded_path is not None:
+            try:
+                uploaded_path.unlink(missing_ok=True)
+            except Exception:
+                logging.debug("Failed to remove uploaded source file", exc_info=True)
 
 
 @router.post("/api/transcribe")

@@ -77,6 +77,7 @@ def test_upload_saved_with_job_scoped_name(tmp_path, monkeypatch):
 
     def fake_run(request, progress=None, should_cancel=None):
         captured_source.append(request.source)
+        assert Path(request.source).exists()
         return TranscriptionResult(text="", language=None, segments=[], rendered={})
 
     with (
@@ -90,6 +91,39 @@ def test_upload_saved_with_job_scoped_name(tmp_path, monkeypatch):
     saved_path = Path(captured_source[0])
     assert saved_path.name == "job-abc123.mp4"
     assert saved_path.parent.name == "uploads"
+    assert not saved_path.exists()
+
+
+def test_uploaded_file_removed_when_pipeline_errors(tmp_path, monkeypatch):
+    """Uploaded source media is removed even when transcription fails."""
+    import whisper_video_to_text.web.views as views_mod
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "uploads").mkdir()
+    (tmp_path / "transcripts").mkdir()
+
+    upload = _make_upload_file("broken.mp4")
+    captured_source: list[str] = []
+    progress_events: list[tuple] = []
+
+    def fake_update(jid, pct, status, msg):
+        progress_events.append((pct, status, msg))
+
+    def fake_run(request, progress=None, should_cancel=None):
+        captured_source.append(request.source)
+        assert Path(request.source).exists()
+        raise RuntimeError("boom")
+
+    with (
+        patch.object(views_mod, "run_transcription", side_effect=fake_run),
+        patch.object(views_mod, "update_progress_sync", side_effect=fake_update),
+        patch.object(views_mod, "set_result_sync"),
+    ):
+        views_mod.run_transcription_task("job-error", file=upload, formats=["txt"])
+
+    saved_path = Path(captured_source[0])
+    assert not saved_path.exists()
+    assert any(event[1] == "error" for event in progress_events)
 
 
 def test_upload_supported_extensions_accepted(tmp_path, monkeypatch):

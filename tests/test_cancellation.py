@@ -240,3 +240,4 @@ def test_run_transcription_task_emits_cancelled_progress(tmp_path, monkeypatch):
 
     statuses = [e[0] for e in progress_events]
     assert "cancelled" in statuses
+    assert not (tmp_path / "uploads" / "job-xyz.mp3").exists()
