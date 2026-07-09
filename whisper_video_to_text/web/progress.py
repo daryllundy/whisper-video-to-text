@@ -21,18 +21,37 @@ class JobState:
         self.result: Optional[dict] = None  # noqa: UP045
         self.queue: asyncio.Queue = asyncio.Queue()
         self.cancel_requested: bool = False
+        self.loop: asyncio.AbstractEventLoop | None = None
 
 
 def create_job() -> str:
     """Create a new job and return its ID."""
     job_id = str(uuid.uuid4())
-    jobs[job_id] = JobState()
+    state = JobState()
+    try:
+        state.loop = asyncio.get_running_loop()
+    except RuntimeError:
+        state.loop = None  # created outside an event loop (tests, CLI)
+    jobs[job_id] = state
     return job_id
 
 
 def get_job(job_id: str) -> Optional[JobState]:  # noqa: UP045
     """Get a job by ID, or None if not found."""
     return jobs.get(job_id)
+
+
+def _emit_threadsafe(job: JobState, update: dict) -> None:
+    """Hand an update to the SSE consumer, crossing threads safely.
+
+    Uses the loop captured at job creation when available; falls back to a
+    direct put only when no loop was ever captured (unit tests without a
+    server).
+    """
+    if job.loop is not None and not job.loop.is_closed():
+        job.loop.call_soon_threadsafe(job.queue.put_nowait, update)
+    else:
+        job.queue.put_nowait(update)
 
 
 def request_cancel_sync(job_id: str) -> bool:
@@ -58,11 +77,7 @@ def set_cancelled_sync(job_id: str, message: str = "Cancelled by user") -> None:
     job.status = "cancelled"
     job.message = message
     update = {"progress": job.progress, "status": "cancelled", "message": message}
-    try:
-        loop = asyncio.get_running_loop()
-        loop.call_soon_threadsafe(job.queue.put_nowait, update)
-    except RuntimeError:
-        job.queue.put_nowait(update)
+    _emit_threadsafe(job, update)
 
 
 async def update_progress(job_id: str, progress: int, status: str, message: str = "") -> None:
@@ -86,16 +101,7 @@ def update_progress_sync(job_id: str, progress: int, status: str, message: str =
         job.progress = progress
         job.status = status
         job.message = message
-        # Use call_soon_threadsafe or create a loop for thread-safe queue access
-        try:
-            loop = asyncio.get_running_loop()
-            loop.call_soon_threadsafe(
-                job.queue.put_nowait,
-                {"progress": progress, "status": status, "message": message},
-            )
-        except RuntimeError:
-            # No running loop - use put_nowait directly (safe if queue is empty)
-            job.queue.put_nowait({"progress": progress, "status": status, "message": message})
+        _emit_threadsafe(job, {"progress": progress, "status": status, "message": message})
 
 
 async def set_result(job_id: str, result: dict) -> None:
@@ -126,11 +132,7 @@ def set_result_sync(job_id: str, result: dict) -> None:
             "message": "Transcription complete",
             "result": result,
         }
-        try:
-            loop = asyncio.get_running_loop()
-            loop.call_soon_threadsafe(job.queue.put_nowait, update)
-        except RuntimeError:
-            job.queue.put_nowait(update)
+        _emit_threadsafe(job, update)
 
 
 async def progress_stream(job_id: str) -> AsyncIterator[dict]:

@@ -157,3 +157,45 @@ def test_update_from_worker_thread_reaches_async_consumer():
             progress.jobs.pop(job_id, None)
 
     asyncio.run(scenario())
+
+
+def test_thread_emission_wakes_waiting_consumer_promptly():
+    async def scenario():
+        job_id = create_job()  # captures the running loop
+        try:
+            job = get_job(job_id)
+            assert job is not None and job.loop is not None
+
+            async def consume():
+                return await job.queue.get()
+
+            task = asyncio.create_task(consume())
+            await asyncio.sleep(0)  # ensure consumer is parked on the queue
+
+            t = threading.Thread(target=update_progress_sync, args=(job_id, 42, "converting", "hi"))
+            t.start()
+            update = await asyncio.wait_for(task, timeout=2)
+            t.join()
+            assert update["progress"] == 42
+        finally:
+            progress.jobs.pop(job_id, None)
+
+    asyncio.run(scenario())
+
+
+def test_create_job_outside_loop_buffers_update():
+    job_id = create_job()
+    try:
+        job = get_job(job_id)
+        assert job is not None
+        assert job.loop is None
+
+        update_progress_sync(job_id, 42, "converting", "hi")
+
+        assert job.queue.get_nowait() == {
+            "progress": 42,
+            "status": "converting",
+            "message": "hi",
+        }
+    finally:
+        progress.jobs.pop(job_id, None)
