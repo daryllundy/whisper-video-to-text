@@ -86,7 +86,7 @@ The page is a **client-side sequential queue** — one job in flight at a time. 
 
 ## Docker
 
-`Dockerfile` installs runtime deps directly with `uv pip install --system` (not `uv sync`) — a comment explains: `uv export --frozen` currently fails on Linux x86_64 due to a `triton`/`openai-whisper` resolver conflict. If you bump deps, update both `pyproject.toml` and the explicit install list in the Dockerfile.
+`Dockerfile` derives runtime deps from the lockfile: `uv export --frozen --no-dev --no-emit-project --extra web` → `uv pip install --system -r requirements.txt`. `pyproject.toml` + `uv.lock` are the single source of truth — no hand-maintained install list. (The old `triton`/`openai-whisper==20231117` resolver conflict that forced dual maintenance was resolved by the `20250625` bump.)
 
 `docker-compose.yml` mounts named volumes for `transcripts`, `uploads`, and the Whisper / yt-dlp caches at `/home/appuser/.cache/`. `docker-compose.dev.yml` is an override that bind-mounts `whisper_video_to_text/` and `tests/` into the container and runs uvicorn with `--reload` for live development.
 
